@@ -1,10 +1,10 @@
 source 'https://rubygems.org'
 gem 'roda', '~> 2.25'
-gem "rom", "~> 3.2"
-gem "rom-repository", "~> 1.3"
-gem "rom-sql", "~> 1.2"
-gem 'pg'
+gem 'rom', '~> 3.2'
+gem 'rom-repository', '~> 1.3'
+gem 'rom-sql', '~> 1.2'
 
+gem 'pg'
 gem 'sass'
 gem 'tilt'
 
