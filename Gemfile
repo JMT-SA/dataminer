@@ -8,8 +8,8 @@ gem 'pg'
 gem 'sass'
 gem 'tilt'
 
-gem 'crossbeams-dataminer',           path: File.join(File.dirname(__FILE__), '..', 'crossbeams-dataminer')
-gem 'crossbeams-dataminer_interface', path: File.join(File.dirname(__FILE__), '..', 'crossbeams-dataminer_interface')
+gem 'crossbeams-dataminer',           path: File.expand_path('../../crossbeams-dataminer', __FILE__)
+gem 'crossbeams-dataminer_interface', path: File.expand_path('../../crossbeams-dataminer_interface', __FILE__)
 
 gem 'pry'
 gem 'rerun' # actually just for dev...
