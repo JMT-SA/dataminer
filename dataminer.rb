@@ -28,5 +28,13 @@ class Dataminer < Roda
     r.root do
       r.redirect '/dataminer/'
     end
+
+    r.is 'versions' do
+      s = '<h2>Gem Versions</h2><ul><li>'
+      s << [Crossbeams::DataminerInterface,
+            Crossbeams::Dataminer].map { |k| "#{k}: #{k.const_get('VERSION')}" }.join('</li><li>')
+      s << '</li></ul>'
+      view(inline: s)
+    end
   end
 end
