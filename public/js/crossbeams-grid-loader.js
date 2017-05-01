@@ -128,11 +128,15 @@ var crossbeamsGridEvents = {
         url    = target.dataset.url,
         method = target.dataset.method;
 
-    if (confirm(prompt)) {
+    swal({
+      title: prompt,
+      type: 'warning',
+      showCancelButton: true
+    }).then(function () {
       document.body.innerHTML += '<form id="dynForm" action="' + url +
         '" method="post"><input name="_method" type="hidden" value="'+method+'" /></form>';
       document.getElementById("dynForm").submit();
-    }
+    });
     //TODO: make call via AJAX & reload grid? Or http to server to figure it out?.....
     //ALSO: disable link automatically while call is being processed...
     event.stopPropagation();
