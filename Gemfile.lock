@@ -4,6 +4,7 @@ PATH
     crossbeams-dataminer_interface (0.1.0)
       axlsx
       crossbeams-dataminer
+      crossbeams-layout
       roda (~> 2.25)
       rouge
 
@@ -12,6 +13,11 @@ PATH
   specs:
     crossbeams-dataminer (0.1.0)
       pg_query
+
+PATH
+  remote: /home/james/ra/crossbeams/crossbeams-layout
+  specs:
+    crossbeams-layout (0.1.0)
 
 GEM
   remote: https://rubygems.org/
@@ -113,6 +119,7 @@ PLATFORMS
 DEPENDENCIES
   crossbeams-dataminer!
   crossbeams-dataminer_interface!
+  crossbeams-layout!
   pg
   pry
   rerun

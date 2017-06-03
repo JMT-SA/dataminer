@@ -8,6 +8,7 @@ gem 'pg'
 gem 'sass'
 gem 'tilt'
 
+gem 'crossbeams-layout',              path: File.expand_path('../../crossbeams-layout', __FILE__)
 gem 'crossbeams-dataminer',           path: File.expand_path('../../crossbeams-dataminer', __FILE__)
 gem 'crossbeams-dataminer_interface', path: File.expand_path('../../crossbeams-dataminer_interface', __FILE__)
 
