@@ -12,7 +12,7 @@ PATH
   remote: /home/james/ra/crossbeams/crossbeams-dataminer
   specs:
     crossbeams-dataminer (0.1.0)
-      pg_query
+      pg_query (= 0.11.4.pre.crosstab)
 
 PATH
   remote: /home/james/ra/crossbeams/crossbeams-layout
@@ -68,7 +68,7 @@ GEM
     nokogiri (1.7.1)
       mini_portile2 (~> 2.1.0)
     pg (0.20.0)
-    pg_query (0.11.4)
+    pg_query (0.11.4.pre.crosstab)
       json (>= 1.8, < 3)
     pry (0.10.4)
       coderay (~> 1.1.0)

@@ -1,29 +1,34 @@
+/* exported crossbeamsLocalStorage */
+
 // Wrapper around browser storage (auto JSON stringify & parse).
-var crossbeamsLocalStorage = {
-  //storageAdaptor: sessionStorage,
+const crossbeamsLocalStorage = {
+  // storageAdaptor: sessionStorage,
   storageAdaptor: localStorage,
 
   // Thanks Angus! - http://goo.gl/GtvsU
-  toType: function(obj) {
+  toType: function toType(obj) {
     return ({}).toString.call(obj).match(/\s([a-z|A-Z]+)/)[1].toLowerCase();
   },
 
-  hasItem: function(key) {
+  hasItem: function hasItem(key) {
     return this.storageAdaptor.getItem(key) !== null;
   },
 
-  getItem: function(key) {
-    var item = this.storageAdaptor.getItem(key);
+  getItem: function getItem(key) {
+    let item = this.storageAdaptor.getItem(key);
 
     try {
       item = JSON.parse(item);
-    } catch (e) {}
+    } catch (e) {
+      // Ignore
+    }
 
     return item;
   },
 
-  setItem: function(key, value) {
-    var type = this.toType(value);
+  setItem: function setItem(key, inValue) {
+    let value = inValue;
+    const type = this.toType(value);
 
     if (/object|array/.test(type)) {
       value = JSON.stringify(value);
@@ -32,18 +37,15 @@ var crossbeamsLocalStorage = {
     this.storageAdaptor.setItem(key, value);
   },
 
-  removeItem: function(key) {
+  removeItem: function removeItem(key) {
     this.storageAdaptor.removeItem(key);
   },
 
-  genStandardKey: function(suffix) {
-    var rx  = new RegExp('/\\d+$');
+  genStandardKey: function genStandardKey(suffix) {
+    const rx = new RegExp('/\\d+$');
     if (suffix === undefined) {
-      return window.location.pathname.replace(rx,'');
+      return window.location.pathname.replace(rx, '');
     }
-    else {
-      return window.location.pathname.replace(rx,'') +'|'+ suffix;
-    }
-  }
+    return `${window.location.pathname.replace(rx, '')}|${suffix}`;
+  },
 };
-

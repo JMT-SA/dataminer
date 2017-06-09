@@ -1,28 +1,51 @@
-// for equiv of $ready() -- place this code at end of <body> or use: document.addEventListener('DOMContentLoaded', fn, false);
-function load_section(elem)
-{
-   var xhr = new XMLHttpRequest();
-   var url = elem.dataset['crossbeams_callback_section'];
-   var content_div = elem.querySelectorAll('.content-target')[0]
+// for equiv of $ready() -- place this code at end of <body> or use:
+// document.addEventListener('DOMContentLoaded', fn, false);
+(function crossbeamsLayout() {
+  function loadSection(elem) {
+    const xhr = new XMLHttpRequest();
+    const url = elem.dataset.crossbeams_callback_section;
+    const contentDiv = elem.querySelectorAll('.content-target')[0];
 
-   xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4 && xhr.status == 200)
-        {
-           content_div.classList.remove('content-loading');
-           content_div.innerHTML = xhr.responseText;
-        }
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState === 4 && xhr.status === 200) {
+        contentDiv.classList.remove('content-loading');
+        contentDiv.innerHTML = xhr.responseText;
+      }
     };
-
-    xhr.open("GET", url, true); // true for asynchronous
+    xhr.open('GET', url, true); // true for asynchronous
     xhr.send(null);
-
-}
-var elements = document.querySelectorAll("section");
-for (var i = 0; i < elements.length; i++) {
-  if (elements[i].dataset['crossbeams_callback_section'] !== undefined) {
-    load_section(elements[i]);
   }
-}
+  const elements = document.querySelectorAll('section');
+  elements.forEach((element) => {
+    if (element.dataset.crossbeams_callback_section !== undefined) {
+      loadSection(element);
+    }
+  });
+
+  // Prevent multiple clicks of submit buttons.
+  function preventMultipleSubmits() {
+    this.dataset.enableWith = this.value;
+    this.value = this.dataset.disableWith;
+    this.classList.remove('dim');
+    this.classList.add('o-50');
+    window.setTimeout('this.disabled=true', 0); // Disable the button with a delay so the form still submits...
+  }
+
+  // // Remove disabled state from button
+  // function revertDisabledButton(element) {
+  //   element.disabled = false;
+  //   element.value = element.dataset.enableWith;
+  //   element.classList.add('dim');
+  //   element.classList.remove('o-50');
+  // }
+
+  // Assign click handler to buttons that need to be disabled.
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-disable-with]').forEach((element) => {
+      element.onclick = preventMultipleSubmits;
+    });
+  });
+}());
 // CODE FROM HERE...
 // This is an alternative way of loading sections...
 // (js can be in head of page)
@@ -49,4 +72,3 @@ for (var i = 0; i < elements.length; i++) {
 // });
 // ====================================================
 // ...TO HERE.
-

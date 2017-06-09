@@ -433,32 +433,5 @@ th {
 /* END OF normalize */
 
 .page-header { color: green }
-
-
-/* Main grid layout */
-.site {
-  display: flex;
-  min-height: 98vh;
-  flex-direction: column;
-}
-.container {
-  flex: 1;
-  // height: 85vh; /* FOR LABEL... */
-  margin: 0 1em;
-}
-
-header,
-.footness {
-  flex: none; /* 2 */
-}
-.footness {
-  background-color: #0F9962;
-}
-.footness p {
-  padding: 0 0.5em;
-  color: white;
-}
-
-
-@import "crossbeams-menu.css.scss"
+@import "crossbeams-layout.css.scss", "crossbeams-menu.css.scss"
 
