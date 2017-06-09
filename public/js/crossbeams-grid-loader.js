@@ -1,21 +1,45 @@
 
 // Object to keep track of the grids in a page - so they can be looked up by div id.
+/**
+ * In-browser store of grids on the page.
+ * @namespace
+ */
 const crossbeamsGridStore = {
   gridStore: {},
 
+  /**
+   * Add a grid to the store.
+   * @param {string} gridId - the id of the grid div element.
+   * @param {object} gridOptions - reference to the grid options object.
+   * @returns {void}
+   */
   addGrid: function addGrid(gridId, gridOptions) {
     this.gridStore[gridId] = gridOptions;
   },
 
+  /**
+   * Retrieve a grid from the store.
+   * @param {string} gridId - the id of the grid div element.
+   * @returns {agGrid} - reference to the grid.
+   */
   getGrid: function getGrid(gridId) {
     return this.gridStore[gridId];
   },
 
+  /**
+   * Remove a grid from the store.
+   * @param {string} gridId - the id of the grid div element.
+   * @returns {void}
+   */
   removeGrid: function removeGrid(gridId) {
     this.gridStore[gridId].api.destroy();
     delete this.gridStore[gridId];
   },
 
+  /**
+   * List of grid ids in the store.
+   * @returns {string} - a list of the grid ids.
+   */
   listGridIds: function listGridIds() {
     const lst = [];
     this.gridStore.forEach((gridId) => {
@@ -28,7 +52,17 @@ const crossbeamsGridStore = {
   },
 };
 
+/**
+ * Handle various events related to interactions with the grid.
+ * @namespace
+ */
 const crossbeamsGridEvents = {
+  /**
+   * Export a grid to a csv file.
+   * @param {string} gridId - the DOM id of the grid.
+   * @param {string} fileName - the name to be given to the exported file.
+   * @returns {void}
+   */
   csvExport: function csvExport(gridId, fileName) {
     const colKeys = [];
     let params = {};
@@ -83,18 +117,34 @@ const crossbeamsGridEvents = {
     gridOptions.api.exportDataAsCsv(params);
   },
 
+  /**
+   * Show/hide the grid's tool panel.
+   * @param {string} gridId - the DOM id of the grid.
+   * @returns {void}
+   */
   toggleToolPanel: function toggleToolPanel(gridId) {
     const gridOptions = crossbeamsGridStore.getGrid(gridId);
     const isShowing = gridOptions.api.isToolPanelShowing();
     gridOptions.api.showToolPanel(!isShowing);
   },
 
+  /**
+   * Show a printable version of the grid.
+   * @param {string} gridId - the DOM id of the grid.
+   * @param {string} gridUrl - the url to populate the grid.
+   * @returns {void}
+   */
   printAGrid: function printAGrid(gridId, gridUrl) {
     const dispSetting = 'toolbar=yes,location=no,directories=yes,menubar=yes,';
     // dispSetting += 'scrollbars=yes,width=650, height=600, left=100, top=25';
     window.open(`/print_grid?grid_url=${encodeURIComponent(gridUrl)}`, 'printGrid', dispSetting);
   },
 
+  /**
+   * Filter a grid using a quick search across all columns in all rows.
+   * @param {event} event - a keypress event.
+   * @returns {void}
+   */
   quickSearch: function quickSearch(event) {
     const gridOptions = crossbeamsGridStore.getGrid(event.target.dataset.gridId);
     // clear on Esc
@@ -112,6 +162,13 @@ const crossbeamsGridEvents = {
   //   //.api.rowModel.rootNode.childrenAfterFilter.length
   //
   // }
+
+  /**
+   * Show the results of a filter change (no rows of total displayed).
+   * FIXME: Not yet working.
+   * @param {string} gridId - the DOM id of the grid.
+   * @returns {void}
+   */
   showFilterChange: function showFilterChange(gridId) {
     let filterLength = 0;
     const gridOptions = crossbeamsGridStore.getGrid(gridId);
@@ -121,6 +178,11 @@ const crossbeamsGridEvents = {
     // console.log('onAfterFilterChanged', filterLength, gridId);
   },
 
+  /**
+   * Show a prompt asking the user to confirm an action from a link in a grid.
+   * @param {element} target - the link.
+   * @returns {void}
+   */
   promptClick: function promptClick(target) {
     // const target = event.target;
     const prompt = target.dataset.prompt;

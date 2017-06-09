@@ -10,7 +10,8 @@ module.exports = {
     }
   },
   "rules": {
-    "no-param-reassign": [ "error", { "props": false } ]
+    "no-param-reassign": [ "error", { "props": false } ],
+    "valid-jsdoc": "error"
   },
   "env": {
     "browser": true,

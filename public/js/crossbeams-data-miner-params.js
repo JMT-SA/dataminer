@@ -288,8 +288,6 @@ const crossbeamsDataMinerParams = {
     });
 
     // Apply default parameter values.
-    // console.log('qp', crossbeamsDataMinerParams.queryParams);
-
     crossbeamsDataMinerParams.applyDefaultValues(crossbeamsDataMinerParams.queryParams);
 
     crossbeamsDataMinerParams.displayParamsAsText();

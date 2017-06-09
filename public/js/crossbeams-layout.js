@@ -1,6 +1,15 @@
 // for equiv of $ready() -- place this code at end of <body> or use:
 // document.addEventListener('DOMContentLoaded', fn, false);
+/**
+ * Build a crossbeamsLayout page.
+ * @namespace {function} crossbeamsLayout
+ */
 (function crossbeamsLayout() {
+  /**
+   * Load a page section using a callback url.
+   * @param {element} elem - The section element in the DOM.
+   * @returns {void}
+   */
   function loadSection(elem) {
     const xhr = new XMLHttpRequest();
     const url = elem.dataset.crossbeams_callback_section;
@@ -22,13 +31,18 @@
     }
   });
 
-  // Prevent multiple clicks of submit buttons.
+  /**
+   * Prevent multiple clicks of submit buttons.
+   * @returns {void}
+   */
   function preventMultipleSubmits() {
     this.dataset.enableWith = this.value;
     this.value = this.dataset.disableWith;
     this.classList.remove('dim');
     this.classList.add('o-50');
-    window.setTimeout('this.disabled=true', 0); // Disable the button with a delay so the form still submits...
+    window.setTimeout(() => {
+      this.disabled = true;
+    }, 0); // Disable the button with a delay so the form still submits...
   }
 
   // // Remove disabled state from button
