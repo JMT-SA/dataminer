@@ -1,11 +1,29 @@
 /* exported crossbeamsDataMinerParams */
-// Behaviour for parameter entry page of Crossbeams DataMiner reports.
 
+/**
+ * Behaviour for parameter entry page of Crossbeams DataMiner reports.
+ * @namespace
+ */
 const crossbeamsDataMinerParams = {
+
+  /**
+   * The Choice object, used to store a filled-in parameter:
+   * @typedef {Object} Choice
+   * @property {string} col - query column name
+   * @property {string} op - operator (=,>...)
+   * @property {string} opText - operater (is, greater than...)
+   * @property {string} val - selected/input value
+   * @property {string} valTo - second value for date ranges
+   * @property {string} text - selected value as text (e.g. for dropdown this could differ from the value)
+   * @property {string} textTo - second value for date ranges as text
+   */
 
   formId: '',
   reportNo: '',
   queryParams: {},
+  /**
+   * @type {...Choice}
+   */
   current_values: [],
 
   removeQueryParamItem: function removeQueryParamItem(node) {
@@ -14,6 +32,11 @@ const crossbeamsDataMinerParams = {
     node.parentNode.removeChild(node);
   },
 
+  /**
+   * Take a query item and format it in HTML for display as an li tag.
+   * @param {object} item - the query item to be displayed.
+   * @return {string} - HTML li tag.
+   */
   queryItemAsText: function queryItemAsText(item) {
     let val = '';
     let valTo = '';
@@ -35,6 +58,12 @@ const crossbeamsDataMinerParams = {
     return `<li style="list-style-type:none;"><i class="fa fa-minus" style="cursor:pointer;color:red;" onclick="crossbeamsDataMinerParams.removeQueryParamItem(this.parentNode)"></i> ${item.caption} ${item.opText} ${val}${valTo}`;
   },
 
+  /**
+   * Format the query parameters as an HTML list.
+   * Calls queryItemAsText to render each item.
+   * @param {object} paramValues - the currently selected parameter values.
+   * @return {string} - HTML li tags.
+   */
   querySelectionAsText: function querySelectionAsText(paramValues) {
     if (paramValues.length === 0) {
       return '<li style="list-style-type:none;">None selected</li>';
@@ -52,6 +81,12 @@ const crossbeamsDataMinerParams = {
     return items.join('');
   },
 
+  /**
+   * Check if a particular query param item is in a list of items.
+   * @param {Choice} obj - the query param item.
+   * @param {array} list - the list of items.
+   * @return {boolean} - true if the object is in the list.
+   */
   containsObject: function containsObject(obj, list) {
     let foundMatch = false;
     list.forEach((item) => {
@@ -63,6 +98,10 @@ const crossbeamsDataMinerParams = {
     return foundMatch;
   },
 
+  /**
+   * Replace the param_display DOM node's innerHTML with a list of the query parameters.
+   * @return {void}
+   */
   displayParamsAsText: function displayParamsAsText() {
     let disp = '<ul>';
     disp += this.querySelectionAsText(this.current_values);
@@ -70,6 +109,11 @@ const crossbeamsDataMinerParams = {
     document.getElementById('param_display').innerHTML = disp;
   },
 
+  /**
+   * Event handler for change of operator select tag.
+   * @param {event} event - the change event.
+   * @returns {void}
+   */
   operatorParmChange: function operatorParmChange(event) {
     const val1 = document.getElementById('qp_value');
     const val2 = document.getElementById('qp_value_to');
@@ -92,16 +136,10 @@ const crossbeamsDataMinerParams = {
     }
   },
 
-  // choice object: {
-  // col                        : query column name
-  // op                         : operator (=,>...)
-  // opText         : operater (is, greater than...)
-  // val                        : selected/input value
-  // valTo         : second value for date ranges
-  // text          : selected value as text
-  // (e.g. for dropdown this could differ from the value)
-  // textTo        : second value for date ranges as text
-  // }
+  /**
+   * Translate the user-entered parameters into a Choice object and add it to the list of current parameters. Update the UI.
+   * @returns {boolean} - true if the parametr combinations are valid and it could be added to the list.
+   */
   addQpFormParam: function addQpFormParam() {
     const choice = {};
     const valElem = document.getElementById('qp_value');
@@ -139,7 +177,11 @@ const crossbeamsDataMinerParams = {
     return true;
   },
 
-  // Listeners for change of parameters and of operators.
+  /**
+   * Listeners for change of parameters and of operators.
+   * @param {DOM node} node - a node added to the page.
+   * @returns {void}
+   */
   checkNode: function checkNode(addedNode) {
     let event = null;
     if (addedNode.nodeType === 1) {
@@ -159,6 +201,10 @@ const crossbeamsDataMinerParams = {
   // .. on submit form, store
   // .. on load, pass 'back' to init to reload params.
   // Maybe store previous n dm params?
+  /**
+   * Store the parameters as currently active on the page in local storage.
+   * @returns {void}
+   */
   storeCurrentParams: function storeCurrentParams() {
     const limit = document.querySelector(`#${this.formId} input[name=limit]`).value;
     const offset = document.querySelector(`#${this.formId} input[name=offset]`).value;
@@ -168,6 +214,11 @@ const crossbeamsDataMinerParams = {
     crossbeamsLocalStorage.setItem(key, stored);
   },
 
+  /**
+   * Find the last-saved parameters in local storage for this report.
+   * If there, apply them to the page.
+   * @returns {void}
+   */
   loadCurrentParams: function loadCurrentParams() {
     const key = crossbeamsLocalStorage.genStandardKey(this.reportNo);
     let stored = null;
@@ -181,6 +232,11 @@ const crossbeamsDataMinerParams = {
     }
   },
 
+  /**
+   * Check if there are previously-used parameters for this report.
+   * If there are, the button to reload them becomes visible, else it ramains hidden.
+   * @returns {void}
+   */
   buildReloadButton: function buildReloadButton() {
     const key = crossbeamsLocalStorage.genStandardKey(this.reportNo);
     if (crossbeamsLocalStorage.hasItem(key)) {
@@ -188,6 +244,11 @@ const crossbeamsDataMinerParams = {
     }
   },
 
+  /**
+   * Go through all parameter definitions for this report and
+   * if any have default values, apply them.
+   * @returns {void}
+   */
   applyDefaultValues: function applyDefaultValues(queryParams) {
     // for (qp in queryParams) { if (queryParams[qp].hasOwnProperty('default_value')) {
     // console.log(queryParams[qp]['default_value']); } }
@@ -225,6 +286,13 @@ const crossbeamsDataMinerParams = {
     // }
   },
 
+  /**
+   * Initialise the crossbeamsDataMinerParams environment for the page.
+   * @param {string} inFormId - the id of the form that will run the report.
+   * @param {string} inRptId - the id of the report to be run.
+   * @param {object} qprm - the query parameter definitions.
+   * @returns {void}
+   */
   init: function init(inFormId, inRptId, qprm) {
     let observer = null;
     this.formId = inFormId;
