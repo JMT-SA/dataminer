@@ -210,6 +210,67 @@ const crossbeamsGridFormatters = {
     return `<b>${params.value.toUpperCase()}</b>`;
   },
 
+  nextChar: function nextChar(c) {
+    return String.fromCharCode(c.charCodeAt(0) + 1);
+  },
+
+  makeContextNode: function makeContextNode(key, prefix, items, item, params) {
+    let node = {};
+    let urlComponents;
+    let url;
+    let subKey = 'a';
+    let subPrefix = '';
+    if (item.is_separator) {
+      if (items.length > 0 && _.last(items).value !== '---') {
+        return { key: `${prefix}${key}`, name: item.text, value: '---' };
+      } else {
+        return null;
+      }
+    } else if (item.hide_if_null && params.data[item.hide_if_null] === null) {
+      // No show of item
+      return null;
+    } else if (item.hide_if_present && params.data[item.hide_if_present] !== null) {
+      // No show of item
+      return null;
+    } else if (item.is_submenu) {
+      node = { key: `${prefix}${key}`, name: item.text, items: [], is_submenu: true };
+      item.items.forEach((subitem) => {
+        subKey = crossbeamsGridFormatters.nextChar(subKey);
+        subPrefix = `${prefix}${key}_`;
+        subnode = crossbeamsGridFormatters.makeContextNode(subKey, subPrefix, node.items, subitem, params);
+        if (subnode !== null) {
+          node.items.push(subnode);
+        }
+      });
+      node.items = _.dropRightWhile(node.items, ['value', '---']);
+      if (node.items.length > 0) {
+        return node;
+      } else {
+        return null;
+      }
+    } else {
+      urlComponents = item.url.split('$');
+      url = '';
+      urlComponents.forEach((cmp, index) => {
+        if (index % 2 === 0) {
+          url += cmp;
+        } else {
+          url += params.data[item[cmp]];
+        }
+      });
+      return { key: `${prefix}${key}`,
+        name: item.text,
+        url,
+        prompt: item.prompt,
+        method: item.method,
+        title: item.title,
+        title_field: item.title_field ? params.data[item.title_field] : item.title ? item.title : '',
+        icon: item.icon,
+        popup: item.popup,
+      };
+    }
+  },
+
   menuActionsRenderer: function menuActionsRenderer(params) {
     if (!params.data) { return null; }
     let valueObj = params.value;
@@ -219,37 +280,20 @@ const crossbeamsGridFormatters = {
     if (valueObj.length === 0) { return ''; }
 
     let items = [];
-    let urlComponents;
-    let url;
+    let node;
+    let prefix = '';
+    let key = 'a';
     valueObj.forEach((item) => {
-      if (item.is_separator) {
-        if (items.length > 1 && _.last(items).value !== '---') {
-          items.push({ name: item.text, value: '---' });
-        }
-      } else if (item.hide_if_null && params.data[item.hide_if_null] === null) {
-        // No show of item
-      } else {
-        urlComponents = item.url.split('$');
-        url = '';
-        urlComponents.forEach((cmp, index) => {
-          if (index % 2 === 0) {
-            url += cmp;
-          } else {
-            url += params.data[item[cmp]];
-          }
-        });
-        items.push({ name: item.text,
-          url,
-          prompt: item.prompt,
-          method: item.method,
-          title: item.title,
-        });
+      key = crossbeamsGridFormatters.nextChar(key);
+      node = crossbeamsGridFormatters.makeContextNode(key, prefix, items, item, params);
+      if (node !== null) {
+        items.push(node);
       }
     });
     // If items are hidden, the last item(s) could be separators.
     // Remove them here.
     items = _.dropRightWhile(items, ['value', '---']);
-    return `<button class='grid-context-menu' data-row='${JSON.stringify(items)}'>list</button>`;
+    return `<button class='grid-context-menu' data-dom-grid-id='${params.context.domGridId}' data-row='${JSON.stringify(items)}'>list</button>`;
   },
 
   // Return a number with thousand separator and at least 2 digits after the decimal.
@@ -450,7 +494,7 @@ Level2PanelCellRenderer.prototype.getTemplate = function getTemplate(params) {
     '  <div class="full-width-grid-toolbar">' +
     '       <b>Functional area: </b>' + parentRecord.functional_area_name + // TODO: ................
     '       <input class="full-width-search" placeholder="Search..."/>' +
-    '       <button>Add a Program</button>' +
+    '       <a href="/security/functional_areas/programs/$:functional_area_id$/new">Add a Program</a>' +
     '  </div>' +
     '</div>';
 
@@ -694,6 +738,7 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
       // lookup of grid ids? populate here and clear when grid unloaded...
       if (grid.dataset.nestedGrid) {
         gridOptions = {
+          context: { domGridId: gridId },
           columnDefs: null,
           rowDefs: null,
           enableColResize: true,
@@ -733,6 +778,7 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
         };
       } else {
         gridOptions = {
+          context: { domGridId: gridId },
           columnDefs: null,
           rowDefs: null,
           enableColResize: true,
@@ -756,6 +802,9 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
         gridOptions.enableStatusBar = false;
       }
 
+      // Index rows by the id column...
+      gridOptions.getRowNodeId = function(data) { return data.id; };
+
       // new agGrid.Grid(grid, gridOptions);
       new agGrid.Grid(grid, gridOptions);
       crossbeamsGridStore.addGrid(gridId, gridOptions);
@@ -768,6 +817,30 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
 }).call(this);
 
 $(() => {
+
+  buildSubMenuItems = (subs, gridId) => {
+    let itemSet = {};
+    if(subs) {
+      subs.forEach((sub) => {
+        itemSet[sub.key] = sub;
+        itemSet[sub.key]['domGridId'] = gridId;
+      });
+    }
+    return itemSet;
+  };
+
+  getItemFromTree = (key, items) => {
+    let keyList = key.split('_');
+    let currKey = keyList.shift();
+    let node = items[currKey];
+    let subKey = currKey;
+    while (keyList.length > 0) {
+      subKey = `${currKey}_${keyList.shift()}`
+      node = node.items[subKey];
+    }
+    return node;
+  };
+
   $.contextMenu({
     selector: '.grid-context-menu',
     trigger: 'left',
@@ -778,33 +851,47 @@ $(() => {
       // var url_components;
       // var url;
       const row = e.target.dataset.row;
+      const gridId = e.target.dataset.domGridId;
       const items = {};
       JSON.parse(row).forEach((item) => {
         if (item.value && item.value === '---') {
-          items[item.name] = '---';
+          items[item.key] = '---';
         } else {
-          items[item.name] = {
+          items[item.key] = {
             name: item.value ? item.value : item.name,
             url: item.url,
             prompt: item.prompt,
             method: item.method,
             title: item.title,
+            title_field: item.title_field,
+            icon: item.icon,
             is_separator: item.is_separator,
+            is_submenu: item.is_submenu,
+            popup: item.popup,
+            domGridId: gridId,
           };
+          if (item.is_submenu) {
+            items[item.key].items = buildSubMenuItems(item.items, gridId);
+          }
         }
       });
 
       return {
-        // callback: (key, options) => {
-        callback: (key) => {
-          const item = items[key];
+        callback: (key, options) => {
+          const item = getItemFromTree(key, items);
           const caller = () => {
             if (item.method === undefined) {
-              window.location = item.url;
+              if (item.popup) {
+                crossbeamsLocalStorage.setItem('popupOnGrid', item.domGridId);
+                crossbeamsUtils.jmtPopupDialog(100,100, item.title_field, '', item.url)
+              } else {
+                window.location = item.url;
+              }
             } else {
               document.body.innerHTML += `<form id="dynForm" action="${item.url}" method="post">
-                <input name="_method" type="hidden" value="${item.method}" /></form>`;
-              document.getElementById('dynForm').submit();
+                <input name="_method" type="hidden" value="${item.method}" />
+                <input name="_csrf" type="hidden" value="${document.querySelector('meta[name="_csrf"]').content}" /></form>`;
+              document.getElementById('dynForm').submit(); // TODO: csrf...
             }
           };
           if (item.prompt !== undefined) {
@@ -812,6 +899,7 @@ $(() => {
               prompt: item.prompt,
               okFunc: caller,
               title: item.title,
+              title_field: item.title_field,
             });
           } else {
             caller();

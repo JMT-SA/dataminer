@@ -5,6 +5,46 @@
  * @namespace
  */
 const crossbeamsUtils = {
+
+  // On success of AJAX call, load results into dialog.
+  dialogLoadSuccessHandler: function dialogLoadSuccessHandler(data, textStatus, jqXHR) {
+    $('#dialog-modal').html(data);
+  },
+  // // On failure of AJAX call, show an alert.
+  // function errorHandler(jqXHR, textStatus, errorThrown) {
+  //   alert("Something went wrong: " + textStatus + ": " + errorThrown);
+  // }
+
+  // Popup a JQ UI dialog.
+  jmtPopupDialog: function jmtPopupDialog(new_width, new_height, title, text, href) {
+    // if (new_width) {$('#dialog-modal').dialog('option', 'width', new_width);}
+    // if (new_height) {$('#dialog-modal').dialog('option', 'height', new_height);}
+    // $('#dialog-modal').html('');
+    // $('#dialog-modal').dialog('option', 'title', title || text);
+    // $('#dialog-modal').dialog('open');
+    if ($("#dialog-modal").PopupWindow("getState")) $("#dialog-modal").PopupWindow("destroy");
+    $('#dialog-modal').PopupWindow({
+          title       : title,
+          modal       : true,
+          statusBar   : false,
+          height      : 300,
+          width       : 400,
+          buttons     : {minimize: false },
+          // top         : 100,
+          // left        : 300
+    });
+    $.ajax({
+      type: 'get',
+      url: href,
+      //          dataType: "script",
+      success: crossbeamsUtils.dialogLoadSuccessHandler//,
+      //error: errorHandler
+    });
+  },
+
+  closeJmtDialog: function closeJmtDialog() {
+    $("#dialog-modal").PopupWindow("close").html('');
+  },
   /**
    * Toggle the visibility of en element in the DOM:
    * @param {string} id - the id of the DOM element.
@@ -133,6 +173,27 @@ const crossbeamsUtils = {
       }
     });
     return index;
+  },
+
+  /**
+   * Make a list sortable.
+   * @param {string} prefix - the prefix part of the id of the ol or ul tag.
+   * @returns {void}
+   */
+  makeListSortable: function makeListSortable(prefix) {
+    const el = document.getElementById(`${prefix}-sortable-items`);
+    const sorted_ids = document.getElementById(`${prefix}-sorted_ids`);
+    const sortable = Sortable.create(el, {
+      animation: 150,
+      handle: ".crossbeams-drag-handle",
+      ghostClass: "crossbeams-sortable-ghost",  // Class name for the drop placeholder
+      dragClass: "crossbeams-sortable-drag",  // Class name for the dragging item
+      onEnd: function (/**Event*/evt) {
+        let id_list = [];
+        for(child of el.children) { id_list.push(child.id.replace('si_', '')); } // strip si_ part...
+        sorted_ids.value = id_list.join(',');
+      },
+    });
   },
 
 };

@@ -27,7 +27,7 @@
   min-height: 150px;
 }
 .content-loading{
-  background: transparent url(loading_bars.gif) 0 0 no-repeat;
+  background: transparent url(/images/loading_bars.gif) 0 0 no-repeat;
 }
 section.crossbeams_layout {
   border-bottom: gray thin solid;
@@ -147,7 +147,13 @@ input, textarea, select {
   padding-left: 0.4em;
 }
 
+.crossbeams-form-error {
+  color: brown;
+}
 
+.crossbeams-div-error {
+  background-color: #fee;
+}
 
 /* label state styles - relies on label placed after input in form...*/
 .crossbeams-form input:focus ~ label, .crossbeams-form textarea:focus ~ label, .crossbeams-form select:focus ~ label {
@@ -157,6 +163,25 @@ input, textarea, select {
 .crossbeams-form input:checked ~ label {
   font-weight: bold;
 }
+/* DRAG-AND-DROP FOR SortableList layout object */
+.crossbeams-draggable {
+  padding: 0.2em;
+  margin: 0.2em 0;
+}
+.crossbeams-drag-handle {
+  cursor: move;
+  margin-right: 0.5em;
+  background: transparent url('/images/handle.png') repeat left top;
+}
+.crossbeams-sortable-drag {
+  background-color: #ccc;
+}
+.crossbeams-sortable-ghost {
+  background-color: #666;
+  border: thin solid purple;
+}
+/* END: DRAG-AND-DROP FOR SortableList layout object */
+
 /* RESPONSIVE */
 @media (max-width: 48em) {
   .crossbeams-row {

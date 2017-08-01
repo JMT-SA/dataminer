@@ -1,7 +1,5 @@
 require 'roda'
-require 'rom'
-require 'rom-sql'
-require 'rom-repository'
+require 'sequel'
 
 require 'crossbeams/dataminer_interface'
 require './lib/db_connections'
@@ -16,7 +14,8 @@ class Dataminer < Roda
   plugin :indifferent_params
 
   use Crossbeams::DataminerInterface::App, url_prefix: 'dataminer/',
-                                           dm_reports_location: File.expand_path('../../../roda_frame/reports', __FILE__),
+                                           # dm_reports_location: File.expand_path('../../../roda_frame/reports', __FILE__),
+                                           dm_reports_location: File.expand_path('../../../roda_frame/grid_definitions/dataminer_queries', __FILE__),
                                            dm_js_location: 'js',
                                            dm_css_location: 'css',
                                            db_connection: DB.base

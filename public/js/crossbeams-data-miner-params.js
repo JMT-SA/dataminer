@@ -28,7 +28,7 @@ const crossbeamsDataMinerParams = {
 
   removeQueryParamItem: function removeQueryParamItem(node) {
     const index = crossbeamsUtils.getListIndex(node);
-    this.current_values.splice(index, 1);
+    this.current_values = this.current_values.splice(index, 1);
     node.parentNode.removeChild(node);
   },
 
@@ -230,6 +230,24 @@ const crossbeamsDataMinerParams = {
       this.current_values = stored.paramValues;
       crossbeamsDataMinerParams.displayParamsAsText();
     }
+  },
+
+  /**
+   * Find the last-saved parameters in local storage for this report.
+   * If there, apply them to the page and immediately submit the form.
+   * @returns {void}
+   */
+  runWithCurrentParams: function runWithCurrentParams() {
+    const key = crossbeamsLocalStorage.genStandardKey(this.reportNo);
+    let stored = null;
+    if (crossbeamsLocalStorage.hasItem(key)) {
+      stored = crossbeamsLocalStorage.getItem(key);
+      document.querySelector(`#${this.formId} input[name=limit]`).value = stored.limit;
+      document.querySelector(`#${this.formId} input[name=offset]`).value = stored.offset;
+      this.current_values = stored.paramValues;
+    }
+    crossbeamsUtils.addJSONVarToForm(this.formId, crossbeamsDataMinerParams.current_values);
+    document.querySelector(`#${this.formId}`).submit();
   },
 
   /**

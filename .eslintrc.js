@@ -20,6 +20,7 @@ module.exports = {
   "globals": {
     "swal": false,
     "agGrid": false,
+    "_": false,
     "crossbeamsUtils": false,
     "crossbeamsLocalStorage": false
   }
