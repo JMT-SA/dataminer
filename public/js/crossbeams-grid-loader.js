@@ -220,12 +220,12 @@ const crossbeamsGridFormatters = {
     let url;
     let subKey = 'a';
     let subPrefix = '';
+    let subnode;
     if (item.is_separator) {
       if (items.length > 0 && _.last(items).value !== '---') {
         return { key: `${prefix}${key}`, name: item.text, value: '---' };
-      } else {
-        return null;
       }
+      return null;
     } else if (item.hide_if_null && params.data[item.hide_if_null] === null) {
       // No show of item
       return null;
@@ -245,30 +245,28 @@ const crossbeamsGridFormatters = {
       node.items = _.dropRightWhile(node.items, ['value', '---']);
       if (node.items.length > 0) {
         return node;
-      } else {
-        return null;
       }
-    } else {
-      urlComponents = item.url.split('$');
-      url = '';
-      urlComponents.forEach((cmp, index) => {
-        if (index % 2 === 0) {
-          url += cmp;
-        } else {
-          url += params.data[item[cmp]];
-        }
-      });
-      return { key: `${prefix}${key}`,
-        name: item.text,
-        url,
-        prompt: item.prompt,
-        method: item.method,
-        title: item.title,
-        title_field: item.title_field ? params.data[item.title_field] : item.title ? item.title : '',
-        icon: item.icon,
-        popup: item.popup,
-      };
+      return null;
     }
+    urlComponents = item.url.split('$');
+    url = '';
+    urlComponents.forEach((cmp, index) => {
+      if (index % 2 === 0) {
+        url += cmp;
+      } else {
+        url += params.data[item[cmp]];
+      }
+    });
+    return { key: `${prefix}${key}`,
+      name: item.text,
+      url,
+      prompt: item.prompt,
+      method: item.method,
+      title: item.title,
+      title_field: item.title_field ? params.data[item.title_field] : item.title ? item.title : '',
+      icon: item.icon,
+      popup: item.popup,
+    };
   },
 
   menuActionsRenderer: function menuActionsRenderer(params) {
@@ -281,7 +279,7 @@ const crossbeamsGridFormatters = {
 
     let items = [];
     let node;
-    let prefix = '';
+    const prefix = '';
     let key = 'a';
     valueObj.forEach((item) => {
       key = crossbeamsGridFormatters.nextChar(key);
@@ -344,8 +342,8 @@ const crossbeamsGridFormatters = {
   },
 
   hrefSimpleFormatter: function hrefSimpleFormatter(params) {
-    const val = params.value;
-    return `<a href="${val.split('|')[0]}">${val.split('|')[1]}</a>`;
+    const vals = params.value.split('|');
+    return `<a href="${vals[0]}">${vals[1]}</a>`;
   },
 
   // Creates a link that when clicked prompts for a yes/no answer.
@@ -639,23 +637,14 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
 };
 
 (function crossbeamsGridLoader() {
-  // var onBtExport;
   const translateColDefs = function translateColDefs(columnDefs) {
-    // console.log(columnDefs);
     const newColDefs = [];
     let newCol = {};
-    // let fn = null;
-    // for (i = 0, len = columnDefs.length; i < len; i++) {
     columnDefs.forEach((col) => {
-      // col = columnDefs[i];
       newCol = {};
-      // for(attr in col) {
       Object.keys(col).forEach((attr) => {
         if (attr === 'cellRenderer') {
           newCol[attr] = col[attr]; // Default behaviour is to copy it over.
-          // fn = window[col[attr]];
-          // newCol[attr] = fn;
-          // newCol[attr] = eval(col[attr]);
           if (col[attr] === 'crossbeamsGridFormatters.testRender') {
             newCol[attr] = crossbeamsGridFormatters.testRender;
           }
@@ -684,7 +673,21 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
           if (col[attr] === 'NumericCellEditor') {
             newCol[attr] = NumericCellEditor;
           } else {
-            // Ignore other editor types   TODO: ????
+            // Ignore other editor types for now
+          }
+        } else if (attr === 'valueGetter') {
+          // This blankWhenNull valueGetter is written especially to help when grouping on a column that could have a null value.
+          // In that case, AG Grid will hide any rows below the null group.
+          if (col[attr] === 'blankWhenNull') {
+            newCol.valueGetter = function valueGetter(params) {
+              const result = params.data ? params.data[params.colDef.field]: "";
+              if (result === null || result === undefined) {
+                return '';
+              }
+              return result;
+            };
+          } else {
+            newCol[attr] = col[attr];
           }
         } else {
           newCol[attr] = col[attr];
@@ -699,8 +702,7 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
     const url = grid.getAttribute('data-gridurl');
     const httpRequest = new XMLHttpRequest();
     httpRequest.open('GET', url);
-    httpRequest.send();
-    // return httpRequest.onreadystatechange = () => {
+
     httpRequest.onreadystatechange = () => {
       let httpResult = null;
       let newColDefs = null;
@@ -718,21 +720,15 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
         gridOptions.api.setRowData(httpResult.rowDefs);
       }
     };
+    httpRequest.send();
   };
 
-  // document.addEventListener(eventName, eventHandler);
   document.addEventListener('DOMContentLoaded', () => {
-    let grid = null;
     let gridOptions = null;
-    let len = null;
-    // let _results = null;
     let gridId = null;
     let forPrint = false;
-    let i = null;
     const grids = document.querySelectorAll('[data-grid]');
-    // _results = [];
-    for (i = 0, len = grids.length; i < len; i += 1) {
-      grid = grids[i];
+    grids.forEach((grid) => {
       gridId = grid.getAttribute('id');
       forPrint = grid.dataset.gridPrint;
       // lookup of grid ids? populate here and clear when grid unloaded...
@@ -779,7 +775,7 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
       } else {
         gridOptions = {
           context: { domGridId: gridId },
-          columnDefs: null,
+          //columnDefs: null,
           rowDefs: null,
           enableColResize: true,
           enableSorting: true,
@@ -791,7 +787,7 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
           // onAfterFilterChanged: function () {
           // console.log('onAfterFilterChanged',
           // this.api.rowModel.rootNode.childrenAfterFilter.length, gridId);}
-          // onAfterFilterChanged: crossbeamsGridEvents.showFilterChange(gridId)
+          // onAfterFilterChanged: crossbeamsGridEvents.showFilterChange(gridId) // TODO: fix...
           // suppressCopyRowsToClipboard: true
           // quickFilterText: 'fred'
         };
@@ -803,43 +799,44 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
       }
 
       // Index rows by the id column...
-      gridOptions.getRowNodeId = function(data) { return data.id; };
+      gridOptions.getRowNodeId = function getRowNodeId(data) { return data.id; };
 
-      // new agGrid.Grid(grid, gridOptions);
       new agGrid.Grid(grid, gridOptions);
       crossbeamsGridStore.addGrid(gridId, gridOptions);
-      gridOptions.onAfterFilterChanged = crossbeamsGridEvents.showFilterChange(gridId);
-      // _results.push(loadGrid(grid, gridOptions));
+      // gridOptions.onAfterFilterChanged = crossbeamsGridEvents.showFilterChange(gridId);
       loadGrid(grid, gridOptions);
-    }
-    // return _results;
+    });
   });
-}).call(this);
+}).call();
 
 $(() => {
-
-  buildSubMenuItems = (subs, gridId) => {
-    let itemSet = {};
-    if(subs) {
+  const buildSubMenuItems = function buildSubMenuItems(subs, gridId) {
+    const itemSet = {};
+    if (subs) {
       subs.forEach((sub) => {
         itemSet[sub.key] = sub;
-        itemSet[sub.key]['domGridId'] = gridId;
+        itemSet[sub.key].domGridId = gridId;
       });
     }
     return itemSet;
   };
 
-  getItemFromTree = (key, items) => {
-    let keyList = key.split('_');
-    let currKey = keyList.shift();
+  const getItemFromTree = function getItemFromTree(key, items) {
+    const keyList = key.split('_');
+    const currKey = keyList.shift();
     let node = items[currKey];
     let subKey = currKey;
     while (keyList.length > 0) {
-      subKey = `${currKey}_${keyList.shift()}`
+      subKey = `${currKey}_${keyList.shift()}`;
       node = node.items[subKey];
     }
     return node;
   };
+
+  // $.contextMenu({
+  //   selector: '.grid-tools-menu',
+  //   trigger: 'left',
+  // });
 
   $.contextMenu({
     selector: '.grid-context-menu',
@@ -883,7 +880,7 @@ $(() => {
             if (item.method === undefined) {
               if (item.popup) {
                 crossbeamsLocalStorage.setItem('popupOnGrid', item.domGridId);
-                crossbeamsUtils.jmtPopupDialog(100,100, item.title_field, '', item.url)
+                crossbeamsUtils.jmtPopupDialog(100, 100, item.title_field, '', item.url);
               } else {
                 window.location = item.url;
               }
