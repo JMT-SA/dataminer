@@ -1,6 +1,6 @@
 source 'https://rubygems.org'
 gem 'roda', '~> 2.25'
-
+gem 'dotenv'
 gem 'pg'
 gem 'sequel'
 gem 'sass'

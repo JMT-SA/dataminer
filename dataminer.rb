@@ -1,10 +1,8 @@
+# TODO: put rodauth in place...
 require 'roda'
-require 'sequel'
 
 require 'crossbeams/dataminer_interface'
 require './lib/db_connections'
-
-DB = DBConnections.new
 
 class Dataminer < Roda
   plugin :render
@@ -13,12 +11,13 @@ class Dataminer < Roda
   plugin :content_for, append: true
   plugin :indifferent_params
 
+  use Rack::Session::Cookie, secret: "some_not_so_nice_long_random_string_DSKJH4378EYR7EGKUFH", key: "_dataminer_session"
   use Crossbeams::DataminerInterface::App, url_prefix: 'dataminer/',
                                            # dm_reports_location: File.expand_path('../../../roda_frame/reports', __FILE__),
                                            dm_reports_location: File.expand_path('../../../roda_frame/grid_definitions/dataminer_queries', __FILE__),
                                            dm_js_location: 'js',
                                            dm_css_location: 'css',
-                                           db_connection: DB.base
+                                           db_connection: DB
 
   route do |r|
     r.assets unless ENV['RACK_ENV'] == 'production'

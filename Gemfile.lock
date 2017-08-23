@@ -30,6 +30,7 @@ GEM
     byebug (9.0.6)
     clipboard (1.1.1)
     coderay (1.1.1)
+    dotenv (2.2.1)
     ffi (1.9.18)
     htmlentities (4.3.4)
     json (2.1.0)
@@ -86,6 +87,7 @@ DEPENDENCIES
   crossbeams-dataminer!
   crossbeams-dataminer_interface!
   crossbeams-layout!
+  dotenv
   pg
   pry
   pry-byebug
@@ -99,4 +101,4 @@ DEPENDENCIES
   tilt
 
 BUNDLED WITH
-   1.15.1
+   1.15.3
