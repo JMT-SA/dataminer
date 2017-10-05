@@ -12,6 +12,11 @@
   color: aliceblue;
   vertical-align: sub;
 }
+.crossbeams-rowcount {
+  color: white;
+  margin-left: 3em;
+  vertical-align: sub;
+}
 .un-formed-input {
   padding: 0.5em 0.6em;
   display: inline-block;
@@ -76,6 +81,7 @@ option[value=""] {
 .container {
   flex: 1;
   margin: 0 1em;
+  margin-top: 90px;
 }
 
 header,
@@ -129,7 +135,8 @@ input, textarea, select {
   cursor: pointer;
 }
 
-.crossbeams-form input, .crossbeams-form textarea, .crossbeams-form select {
+/* .crossbeams-form input, .crossbeams-form textarea, .crossbeams-form select { */
+.crossbeams-form .cbl-input, .crossbeams-form .multi-wrapper {
   order: 2;
   flex: 1 1 auto;
 }
@@ -155,8 +162,23 @@ input, textarea, select {
   background-color: #fee;
 }
 
+.crossbeams-warning-note {
+  padding: 0.2em;
+  border: thin solid brown;
+  color: brown;
+  background-color: #FFC107;
+}
+
+.crossbeams-error-note {
+  padding: 0.2em;
+  border: thin solid brown;
+  color: brown;
+  background-color: #fee;
+}
+
 /* label state styles - relies on label placed after input in form...*/
-.crossbeams-form input:focus ~ label, .crossbeams-form textarea:focus ~ label, .crossbeams-form select:focus ~ label {
+/* .crossbeams-form input:focus ~ label, .crossbeams-form textarea:focus ~ label, .crossbeams-form select:focus ~ label { */
+.crossbeams-form .cbl-input:focus ~ label, .crossbeams-form .searchable-multi:focus ~ label {
   color: darkcyan;
 }
 
@@ -182,6 +204,164 @@ input, textarea, select {
 }
 /* END: DRAG-AND-DROP FOR SortableList layout object */
 
+/* START: SEARCH MENU RESULTS */
+#menuSearchResults {
+  background-color: white;
+  display: none;
+  list-style-type: none;
+  margin: 0 0 0 10px;
+  padding: 0;
+  position: absolute;
+  /* width: 150px; */
+  z-index: 999;
+  font-family: Arial, Helvetica, Sans;
+  font-size: 16px;
+  line-height: 40px;
+}
+
+#menuSearchResults > li {
+  border-color: gray;
+  border-image: none;
+  border-style: solid solid none;
+  border-width: 1px 1px 0;
+  padding: 1px 5px;
+  height: 40px;
+  font-size: 18px;
+}
+
+#menuSearchResults > li:last-child {
+  border-bottom: 1px solid gray;
+}
+
+#menuSearchResults > li > a {
+  text-decoration: none;
+  color: inherit;
+}
+/* #menuSearchResults > li:hover > a:first-child { */
+#menuSearchResults > li:hover {
+  background-color: rgba(0,0,0,0.1);
+}
+
+// #menuSearch:focus + #menuSearchResults {
+//   display: block;
+// }
+/* END: SEARCH MENU RESULTS */
+
+.thinbordertable {
+  border-collapse: collapse;
+}
+.thinbordertable th {
+  font-size: smaller;
+  font-weight: bold;
+  padding: 0 5px;
+  vertical-align: bottom;
+}
+.thinbordertable td {
+  vertical-align: top;
+  padding:        4px;
+  border: thin solid gray;
+}
+.thinbordertable td.noborder {
+  vertical-align: top;
+  padding:        4px;
+  border: none;
+}
+
+/* START: Table row alternate background and hover background */
+tr.hover-row:hover {
+  background-color: #90EE90;
+  color: #000000;
+}
+tr.rowodd {
+}
+tr.roweven {
+  background-color: whiteSmoke;
+}
+/* END  : Table row alternate background and hover background */
+
+/* A11Y DIALOG /
+
+/* -------------------------------------------------------------------------- *\
+ * Necessary styling for the dialog to work
+ * -------------------------------------------------------------------------- */
+
+.dialog[aria-hidden="true"] {
+  display: none;
+}
+
+/* -------------------------------------------------------------------------- *\
+ * Styling to make the dialog look like a dialog
+ * -------------------------------------------------------------------------- */
+
+.dialog-overlay {
+  z-index: 2;
+  background-color: rgba(0, 0, 0, 0.66);
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+}
+
+.dialog-content {
+  background-color: rgb(255, 255, 255);
+  z-index: 3;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  -webkit-transform: translate(-50%, -50%);
+  -ms-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+}
+
+/* -------------------------------------------------------------------------- *\
+ * Extra dialog styling to make it shiny
+ * -------------------------------------------------------------------------- */
+
+.dialog-content {
+  padding: 1em;
+  max-width: 90%;
+  width: 600px;
+  border-radius: 2px;
+}
+
+@media screen and (min-width: 700px) {
+  .dialog-content {
+    padding: 2em;
+  }
+}
+
+.dialog-overlay {
+  background-color: rgba(43, 46, 56, 0.9);
+}
+
+.dialog h1 {
+  margin: 0;
+  font-size: 1.25em;
+}
+
+.dialog-close {
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+  border: 0;
+  padding: 0;
+  background-color: transparent;
+  font-weight: bold;
+  font-size: 1.25em;
+  width: 1.2em;
+  height: 1.2em;
+  text-align: center;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+@media screen and (min-width: 700px) {
+  .dialog-close {
+    top: 1em;
+    right: 1em;
+  }
+}
 /* RESPONSIVE */
 @media (max-width: 48em) {
   .crossbeams-row {
@@ -189,6 +369,8 @@ input, textarea, select {
   }
 }
 @media (max-width: 600px) {
+  .cbl-input,
+  .multi-wrapper,
   input,
   select{width: 100%;}
   input[type="radio"],

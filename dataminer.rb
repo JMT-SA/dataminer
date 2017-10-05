@@ -13,8 +13,8 @@ class Dataminer < Roda
 
   use Rack::Session::Cookie, secret: "some_not_so_nice_long_random_string_DSKJH4378EYR7EGKUFH", key: "_dataminer_session"
   use Crossbeams::DataminerInterface::App, url_prefix: 'dataminer/',
-                                           # dm_reports_location: File.expand_path('../../../roda_frame/reports', __FILE__),
-                                           dm_reports_location: File.expand_path('../../../roda_frame/grid_definitions/dataminer_queries', __FILE__),
+                                           dm_reports_location: File.expand_path('../../../roda_frame/reports', __FILE__),
+                                           # dm_reports_location: File.expand_path('../../framework/grid_definitions/dataminer_queries', __FILE__),
                                            dm_js_location: 'js',
                                            dm_css_location: 'css',
                                            db_connection: DB

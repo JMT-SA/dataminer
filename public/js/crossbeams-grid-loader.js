@@ -58,6 +58,63 @@ const crossbeamsGridStore = {
  */
 const crossbeamsGridEvents = {
   /**
+   * Expand a grid to full screen.
+   * @param {string} gridId - the DOM id of the grid.
+   * @returns {void}
+   */
+  toFullScreen: function toFullScreen(gridId) {
+    const grid = document.getElementById(gridId);
+    (grid.requestFullscreen || grid.webkitRequestFullscreen || grid.mozRequestFullScreen || grid.msRequestFullscreen || function(){}).call(grid);
+  },
+
+  /**
+   * Display the number of rows in the grid. Adjust on filter.
+   * @param {string} gridId - the DOM id of the grid.
+   * @param {integer} filterLength - the number of filtered rows.
+   * @param {integer} rows - the total number of rows.
+   * @returns {void}
+   */
+  displayRowCounts: function displayRowCounts(gridId, filterLength, rows) {
+    const display = document.getElementById(`${gridId}_rowcount`);
+    if (filterLength === rows) {
+      display.textContent = `(${rows} rows)`;
+    } else {
+      display.textContent = `(${filterLength} of ${rows} rows)`;
+    }
+  },
+
+  /**
+   * Add option tags to a select element - one for each column name in the grid.
+   * @param {string} gridId - the DOM id of the grid.
+   * @param {array} colDefs - the column definitions for the grid.
+   * @returns {void}
+   */
+  makeColumnScrollList: function makeColumnScrollList(gridId, colDefs) {
+    const select = document.getElementById(`${gridId}-scrollcol`);
+    let option;
+    colDefs.sort((a, b) => a.headerName.localeCompare(b.headerName) ).forEach((col) => {
+      if (col.field !== undefined && !col.hide) {
+        option = document.createElement("option");
+        option.text = col.headerName;
+        option.value = col.field;
+        select.appendChild(option);
+      }
+    });
+    // new Selectr(select);
+  },
+
+  /**
+   * Scroll the grid horizontally to ensure the chosen column is visible.
+   * @param {event} event - a change event.
+   * @returns {void}
+   */
+  scrollToColumn: function scrollToColumn(event) {
+    const gridOptions = crossbeamsGridStore.getGrid(event.target.dataset.gridId);
+    gridOptions.api.ensureColumnVisible(event.target.value);
+    event.target.selectedIndex = 0;
+  },
+
+  /**
    * Export a grid to a csv file.
    * @param {string} gridId - the DOM id of the grid.
    * @param {string} fileName - the name to be given to the exported file.
@@ -154,28 +211,39 @@ const crossbeamsGridEvents = {
     gridOptions.api.setQuickFilter(event.target.value);
   },
 
-  // setFilterChangeEvent: function (gridId) {
-  //   var gridOptions;
-  //
-  //   gridOptions = crossbeamsGridStore.getGrid(gridId);
-  //   gridOptions.api.afterFilterChanged();
-  //   //.api.rowModel.rootNode.childrenAfterFilter.length
-  //
-  // }
-
-  /**
-   * Show the results of a filter change (no rows of total displayed).
-   * FIXME: Not yet working.
-   * @param {string} gridId - the DOM id of the grid.
-   * @returns {void}
-   */
-  showFilterChange: function showFilterChange(gridId) {
-    let filterLength = 0;
+  viewSelectedRow: function viewSelectedRow(gridId) {
     const gridOptions = crossbeamsGridStore.getGrid(gridId);
-    if (gridOptions.api.rowModel.rootNode.childrenAfterFilter) {
-      filterLength = gridOptions.api.rowModel.rootNode.childrenAfterFilter.length;
+    let rowNode = gridOptions.api.getSelectedNodes()[0];
+    let cnt = 0;
+    if (rowNode === undefined) {
+      rowNode = gridOptions.api.getDisplayedRowAtIndex(gridOptions.api.getFirstDisplayedRow());
     }
-    // console.log('onAfterFilterChanged', filterLength, gridId);
+
+    // TODO: smarten table, use grid value getters/formatters etc for boolean, right-justify etc.
+    //       - row highlight.
+    //       - sort keys. (and un-sort)
+    //       - next/prev navigation of table
+    //       - button in UI
+    //       - skip hidden columns
+    //       - skip grouped rows in going for first selected
+    //       - skip if data does not have a columndef (e.g. dataminer reports grid)
+    // const content = `<div style="position:absolute;overflow-y:auto;top:40px;bottom:10px;left:10px;right:10px;min-height:200px;">
+    const content = `<div style="overflow-y:auto;top:40px;bottom:10px;left:10px;right:10px;min-height:200px;">
+      <table class="thinbordertable">
+      <thead>
+      <tr><th>Column</th><th>Value</th></tr>
+      </thead>
+      <tbody>
+      ${Object.keys(rowNode.data).map((k) => `
+        <tr class="hover-row ${(() => {cnt += 1; return cnt % 2 === 0 ? 'roweven' : 'rowodd';})()}"><td>
+          ${gridOptions.api.getColumnDef(k).headerName}
+          </td><td>
+          ${rowNode.data[k]}
+        </td></tr>`).join('')}
+      </tbody>
+      </table>
+      </div>`
+    crossbeamsUtils.showHtmlInDialog('Selected Row', content);
   },
 
   /**
@@ -184,7 +252,6 @@ const crossbeamsGridEvents = {
    * @returns {void}
    */
   promptClick: function promptClick(target) {
-    // const target = event.target;
     const prompt = target.dataset.prompt;
     const url = target.dataset.url;
     const method = target.dataset.method;
@@ -230,6 +297,9 @@ const crossbeamsGridFormatters = {
       // No show of item
       return null;
     } else if (item.hide_if_present && params.data[item.hide_if_present] !== null) {
+      // No show of item
+      return null;
+    } else if (item.hide_if_true && params.data[item.hide_if_true] === true) {
       // No show of item
       return null;
     } else if (item.is_submenu) {
@@ -358,7 +428,7 @@ const crossbeamsGridFormatters = {
     prompt = prompt || 'Are you sure?';
     method = (method || 'post').toLowerCase();
     return `<a href='#' data-prompt="${prompt}" data-method="${method}" data-url="${url}"
-    onclick="crossbeamsGridEvents.promptClick();">${linkText}</a>`;
+    onclick="crossbeamsGridEvents.promptClick(this);">${linkText}</a>`;
   },
 };
 
@@ -706,6 +776,7 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
     httpRequest.onreadystatechange = () => {
       let httpResult = null;
       let newColDefs = null;
+      let rows = 0;
       if (httpRequest.readyState === 4 && httpRequest.status === 200) {
         httpResult = JSON.parse(httpRequest.responseText);
         // var midLevelColumnDefs, detailColumnDefs;
@@ -718,10 +789,15 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
         }
         gridOptions.api.setColumnDefs(newColDefs); // TODO.............. ????
         gridOptions.api.setRowData(httpResult.rowDefs);
+        gridOptions.api.forEachLeafNode((n) => { rows += 1; });
+        crossbeamsGridEvents.displayRowCounts(gridOptions.context.domGridId, rows, rows);
+        // TODO: if the grid has no horizontal scrollbar, hide the scroll to column dropdown.
+        crossbeamsGridEvents.makeColumnScrollList(gridOptions.context.domGridId, newColDefs);
       }
     };
     httpRequest.send();
   };
+
 
   document.addEventListener('DOMContentLoaded', () => {
     let gridOptions = null;
@@ -740,7 +816,7 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
           enableColResize: true,
           enableSorting: true,
           enableFilter: true,
-          suppressScrollLag: true,
+          suppressScrollLag: true, // TODO: remove with version 13...
           enableRangeSelection: true,
           enableStatusBar: true,
           suppressAggFuncInHeader: true,
@@ -781,15 +857,18 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
           enableSorting: true,
           enableFilter: true,
           suppressScrollLag: true,
+          rowSelection: 'single',
           enableRangeSelection: true,
           enableStatusBar: true,
           suppressAggFuncInHeader: true,
-          // onAfterFilterChanged: function () {
-          // console.log('onAfterFilterChanged',
-          // this.api.rowModel.rootNode.childrenAfterFilter.length, gridId);}
-          // onAfterFilterChanged: crossbeamsGridEvents.showFilterChange(gridId) // TODO: fix...
+          onFilterChanged: function () {
+            let filterLength = 0;
+            let rows = 0;
+            this.api.forEachLeafNode((n) => { rows += 1; });
+            this.api.forEachNodeAfterFilter((n) => { if (!n.group) { filterLength += 1; } });
+            crossbeamsGridEvents.displayRowCounts(gridId, filterLength, rows);
+          },
           // suppressCopyRowsToClipboard: true
-          // quickFilterText: 'fred'
         };
       }
 
@@ -803,7 +882,6 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
 
       new agGrid.Grid(grid, gridOptions);
       crossbeamsGridStore.addGrid(gridId, gridOptions);
-      // gridOptions.onAfterFilterChanged = crossbeamsGridEvents.showFilterChange(gridId);
       loadGrid(grid, gridOptions);
     });
   });
@@ -877,18 +955,72 @@ $(() => {
         callback: (key, options) => {
           const item = getItemFromTree(key, items);
           const caller = () => {
+            let form = null;
             if (item.method === undefined) {
               if (item.popup) {
                 crossbeamsLocalStorage.setItem('popupOnGrid', item.domGridId);
-                crossbeamsUtils.jmtPopupDialog(100, 100, item.title_field, '', item.url);
+                // crossbeamsUtils.jmtPopupDialog(100, 100, item.title_field, '', item.url);
+                crossbeamsUtils.popupDialog(item.title_field, item.url);
               } else {
                 window.location = item.url;
               }
             } else {
-              document.body.innerHTML += `<form id="dynForm" action="${item.url}" method="post">
-                <input name="_method" type="hidden" value="${item.method}" />
-                <input name="_csrf" type="hidden" value="${document.querySelector('meta[name="_csrf"]').content}" /></form>`;
-              document.getElementById('dynForm').submit(); // TODO: csrf...
+              // TODO: This section needs a rethink. It works, but:
+              // - not intuitive to use .popup here
+              // - this is probably ONLY for deletes. Any other? [It can only be a url with id - there is no form data to post...
+              // - should ALL deletes from grids be done through fetches? Probably.
+              if (item.popup) {
+                crossbeamsLocalStorage.setItem('popupOnGrid', item.domGridId);
+                form = new FormData();
+                form.append('_method', item.method);
+                form.append('_csrf', document.querySelector('meta[name="_csrf"]').content);
+                fetch(item.url, {
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  body: form,
+                }).then((response) => response.json())
+                  .then(function(data) {
+                  if (data.redirect) {
+                    window.location = data.redirect;
+                  } else if (data.removeGridRowInPlace) {
+                    const gridId = crossbeamsLocalStorage.getItem('popupOnGrid');
+                    // TODO: move to own function..
+                    const gridOptions = crossbeamsGridStore.getGrid(gridId);
+                    let rowNode = gridOptions.api.getRowNode(data.removeGridRowInPlace.id);
+                    gridOptions.api.updateRowData({remove: [rowNode]})
+                  } else if (data.updateGridInPlace) {
+                    const gridId = crossbeamsLocalStorage.getItem('popupOnGrid');
+                    // TODO: move to own function..
+                    const gridOptions = crossbeamsGridStore.getGrid(gridId);
+                    let rowNode = gridOptions.api.getRowNode(data.updateGridInPlace.id);
+                    for (const k in data.updateGridInPlace.changes) {
+                        rowNode.setDataValue(k, data.updateGridInPlace.changes[k]);
+                    };
+                  } else {
+                    console.log('Not sure what to do with this:', data);
+                  }
+                  // Only if not redirect...
+                  if (data.flash) {
+                    if (data.flash.notice) {
+                      Jackbox.success(data.flash.notice);
+                    }
+                    if (data.flash.error) {
+                      if (data.exception) {
+                        Jackbox.error(data.flash.error, { time: 20 });
+                      } else {
+                        Jackbox.error(data.flash.error);
+                      }
+                    }
+                  }
+                }).catch(function(data) {
+                    Jackbox.error(`An error occurred ${data}`, { time: 20 });
+                });
+              } else {
+                document.body.innerHTML += `<form id="dynForm" action="${item.url}" method="post">
+                  <input name="_method" type="hidden" value="${item.method}" />
+                  <input name="_csrf" type="hidden" value="${document.querySelector('meta[name="_csrf"]').content}" /></form>`;
+                document.getElementById('dynForm').submit(); // TODO: csrf...
+              }
             }
           };
           if (item.prompt !== undefined) {

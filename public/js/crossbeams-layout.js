@@ -92,15 +92,33 @@
    * Assign a click handler to buttons that need to be disabled.
    */
   document.addEventListener('DOMContentLoaded', () => {
+    const logout_link = document.querySelector('#logout');
+    if (logout_link) {
+      logout_link.addEventListener('click', (event) => {
+        crossbeamsLocalStorage.removeItem('selectedFuncMenu');
+      });
+    }
+    // Initialise any selects to be searchable or multi-selects.
+    crossbeamsUtils.makeMultiSelects();
+    crossbeamsUtils.makeSearchableSelects();
+
     document.body.addEventListener('click', (event) => {
-      if (event.target.dataset.disableWith) {
+      if (event.target.dataset && event.target.dataset.disableWith) {
         preventMultipleSubmits(event.target);
       }
-      if (event.target.dataset.brieflyDisableWith) {
+      if (event.target.dataset && event.target.dataset.brieflyDisableWith) {
         preventMultipleSubmitsBriefly(event.target);
       }
+      if (event.target.dataset && event.target.dataset.popupDialog) {
+        // crossbeamsUtils.jmtPopupDialog(100, 100, event.target.text, '', event.target.href);
+        crossbeamsUtils.popupDialog(event.target.text, event.target.href);
+        event.stopPropagation();
+        event.preventDefault();
+      }
       if (event.target.classList.contains('close-dialog')) {
-         crossbeamsUtils.closeJmtDialog();
+        crossbeamsUtils.closePopupDialog();
+        event.stopPropagation();
+        event.preventDefault();
       }
     });
 
@@ -108,14 +126,13 @@
      * Turn a form into a remote (AJAX) form on submit.
      */
     document.body.addEventListener('submit', function(event) {
-      if (event.target.dataset.remote === 'true') {
+      if (event.target.dataset && event.target.dataset.remote === 'true') {
         fetch(event.target.action, {
           method: 'POST', // GET?
           credentials: 'same-origin',
           body: new FormData(event.target),
-        }).then(function(response) {
-          return response.json();
-        }).then(function(data) {
+        }).then((response) => response.json())
+          .then(function(data) {
           let closeDialog = true;
           if (data.redirect) {
             window.location = data.redirect;
@@ -129,7 +146,7 @@
             };
           } else if (data.replaceDialog) {
             closeDialog = false;
-            $('#dialog-modal').html(data.replaceDialog.content);
+            document.getElementById('dialog-content').innerHTML = data.replaceDialog.content;
           } else {
             console.log('Not sure what to do with this:', data);
           }
@@ -147,7 +164,7 @@
             }
           }
           if (closeDialog && !data.exception) {
-            crossbeamsUtils.closeJmtDialog();
+            crossbeamsUtils.closePopupDialog();
           }
         }).catch(function(data) {
             Jackbox.error(`An error occurred ${data}`, { time: 20 });

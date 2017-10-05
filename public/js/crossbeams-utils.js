@@ -6,44 +6,79 @@
  */
 const crossbeamsUtils = {
 
-  // On success of AJAX call, load results into dialog.
-  dialogLoadSuccessHandler: function dialogLoadSuccessHandler(data, textStatus, jqXHR) {
-    $('#dialog-modal').html(data);
-  },
-  // // On failure of AJAX call, show an alert.
-  // function errorHandler(jqXHR, textStatus, errorThrown) {
-  //   alert("Something went wrong: " + textStatus + ": " + errorThrown);
-  // }
-
-  // Popup a JQ UI dialog.
-  jmtPopupDialog: function jmtPopupDialog(new_width, new_height, title, text, href) {
-    // if (new_width) {$('#dialog-modal').dialog('option', 'width', new_width);}
-    // if (new_height) {$('#dialog-modal').dialog('option', 'height', new_height);}
-    // $('#dialog-modal').html('');
-    // $('#dialog-modal').dialog('option', 'title', title || text);
-    // $('#dialog-modal').dialog('open');
-    if ($("#dialog-modal").PopupWindow("getState")) $("#dialog-modal").PopupWindow("destroy");
-    $('#dialog-modal').PopupWindow({
-          title       : title,
-          modal       : true,
-          statusBar   : false,
-          height      : 300,
-          width       : 400,
-          buttons     : {minimize: false },
-          // top         : 100,
-          // left        : 300
+  // Popup a modal dialog.
+  /**
+   * Show a popup dialog window and make an AJAX call to populate the dialog.
+   * @param {string} title - the title to show in the dialog.
+   * @param {string} href - the url to call to load the dialog main content.
+   * @returns {void}
+   */
+  popupDialog: function popupDialog(title, href) {
+    document.getElementById('dialogTitle').innerHTML = title;
+    document.getElementById('dialog-content').innerHTML = '';
+    fetch(href, {
+      method: 'GET',
+      credentials: 'same-origin',
+    }).then(function(response) {
+      return response.text();
+      })
+      .then(function(data) {
+      document.getElementById('dialog-content').innerHTML = data;
+      crossbeamsUtils.makeMultiSelects();
+      crossbeamsUtils.makeSearchableSelects();
+    }).catch(function(data) {
+      Jackbox.error('The action was unsuccessful...');
+      const htmlText = data.responseText ? data.responseText : '';
+      document.getElementById('dialog-content').innerHTML = htmlText;
     });
-    $.ajax({
-      type: 'get',
-      url: href,
-      //          dataType: "script",
-      success: crossbeamsUtils.dialogLoadSuccessHandler//,
-      //error: errorHandler
-    });
+    crossbeamsDialog.show();
   },
 
-  closeJmtDialog: function closeJmtDialog() {
-    $("#dialog-modal").PopupWindow("close").html('');
+  /**
+   * Close the popup dialog window.
+   * @returns {void}
+   */
+  closePopupDialog: function closePopupDialog() {
+    crossbeamsDialog.hide();
+  },
+
+  /**
+   * Show a popup dialog window with the provided title and text.
+   * @param {string} title - the title to show in the dialog.
+   * @param {string} text - the text to serve as the main body of the dialog.
+   * @returns {void}
+   */
+  showHtmlInDialog: function showHtmlInDialog(title, text) {
+    document.getElementById('dialogTitle').innerHTML = title;
+    document.getElementById('dialog-content').innerHTML = text;
+    crossbeamsDialog.show();
+  },
+
+  /**
+   * Applies the multi skin to multiselect dropdowns.
+   * @returns {void}
+   */
+  makeMultiSelects: function makeMultiSelects() {
+    const sels = document.querySelectorAll('[data-multi]');
+    sels.forEach((sel) => {
+      multi(sel); // multi select with two panes...
+    });
+  },
+  /**
+   * Changes select tags into Selectr elements.
+   * @returns {void}
+   */
+  makeSearchableSelects: function makeSearchableSelects() {
+    const sels = document.querySelectorAll('.searchable-select');
+    sels.forEach((sel) => {
+      new Selectr(sel, {
+        customClass: 'cbl-input',
+        defaultSelected: true, // should configure via data...
+        // multiple: true,     // should configure via data...
+        allowDeselect: false,
+        clearable: true,       // should configure via data...
+      }); // select that can be searched.
+    });
   },
   /**
    * Toggle the visibility of en element in the DOM:
@@ -123,11 +158,12 @@ const crossbeamsUtils = {
    * For a 2-dimensional array the option text is the 1st element and the value is the second.
    * @param {string} name - the name of the select tag.
    * @param {array} arr - the array of option values.
+   * @param {string} [attrs] - optional - a string to include class/style etc in the tag.
    * @returns {string} - the select tag code.
    */
-  makeSelect: function makeSelect(name, arr) {
+  makeSelect: function makeSelect(name, arr, attrs) {
     // var sel = '<select id="' + name + '" name="' + name + '">';
-    let sel = `<select id="${name}" name="${name}">`;
+    let sel = `<select id="${name}" name="${name}" ${attrs || ''}>`;
     arr.forEach((item) => {
       if (item.constructor === Array) {
         // sel += '<option value="' + (item[1] || item[0]) + '">' + item[0] + '</option>';
