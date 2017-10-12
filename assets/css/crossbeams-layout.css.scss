@@ -112,7 +112,8 @@ header,
   flex: 1;
 }
 
-input, textarea, select {
+/* input, textarea, select { */
+.cbl-input {
   font-size: 1em;
   padding: 2px 5px 4px;
 /*  border: 0 none; */
@@ -371,7 +372,7 @@ tr.roweven {
 @media (max-width: 600px) {
   .cbl-input,
   .multi-wrapper,
-  input,
+  /* input, */
   select{width: 100%;}
   input[type="radio"],
   input[type="checkbox"],
@@ -389,4 +390,8 @@ tr.roweven {
   text-align: left;
   }
 }
-
+@media (max-width: 800px) {
+  .crossbeams-to-fullscreen {
+    display:none;
+  }
+}

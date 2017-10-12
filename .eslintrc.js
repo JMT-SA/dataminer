@@ -18,6 +18,7 @@ module.exports = {
     "jquery": true,
   },
   "globals": {
+    "_": false,
     "swal": false,
     "agGrid": false,
     "_": false,
