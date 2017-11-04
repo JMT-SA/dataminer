@@ -122,6 +122,14 @@
       }
     });
 
+    class HttpError extends Error {
+      constructor(response) {
+        super(`${response.status} for ${response.url}`);
+        this.name = 'HttpError';
+        this.response = response;
+      }
+    };
+
     /**
      * Turn a form into a remote (AJAX) form on submit.
      */
@@ -130,9 +138,19 @@
         fetch(event.target.action, {
           method: 'POST', // GET?
           credentials: 'same-origin',
+          headers: new Headers({
+            'X-Custom-Request-Type': 'Fetch'
+          }),
           body: new FormData(event.target),
-        }).then((response) => response.json())
-          .then(function(data) {
+        })
+        .then(response => {
+          if (response.status == 200) {
+            return response.json();
+          } else {
+            throw new HttpError(response);
+          }
+        })
+        .then(function(data) {
           let closeDialog = true;
           if (data.redirect) {
             window.location = data.redirect;
@@ -167,7 +185,12 @@
             crossbeamsUtils.closePopupDialog();
           }
         }).catch(function(data) {
-            Jackbox.error(`An error occurred ${data}`, { time: 20 });
+          if (data.response.status === 500) {
+            data.response.text().then(body => {
+              document.getElementById('dialog-content').innerHTML = body
+            });
+          }
+          Jackbox.error(`An error occurred ${data}`, { time: 20 });
         });
       event.stopPropagation();
       event.preventDefault();
@@ -175,6 +198,10 @@
     });
   });
 }());
+
+function testEvt(gridId) {
+  console.log('got grid', gridId, self);
+};
 // CODE FROM HERE...
 // This is an alternative way of loading sections...
 // (js can be in head of page)
