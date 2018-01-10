@@ -6,6 +6,127 @@
  */
 const crossbeamsUtils = {
 
+  currentDialogLevel: function currentDialogLevel() {
+    if (crossbeamsDialogLevel2.shown) {
+      return 2;
+    }
+    if (crossbeamsDialogLevel1.shown) {
+      return 1;
+    }
+    return 0;
+  },
+
+  nextDialogContent: function nextDialogContent() {
+    switch (this.currentDialogLevel()) {
+      case 2:
+        return 'dialog-content-level2';
+      case 1:
+        return 'dialog-content-level2';
+      default:
+        return 'dialog-content-level1';
+    }
+  },
+
+  nextDialogTitle: function nextDialogTitle() {
+    switch (this.currentDialogLevel()) {
+      case 2:
+        return 'dialogTitleLevel2';
+      case 1:
+        return 'dialogTitleLevel2';
+      default:
+        return 'dialogTitleLevel1';
+    }
+  },
+
+  nextDialog: function nextDialog() {
+    switch (this.currentDialogLevel()) {
+      case 2:
+        return crossbeamsDialogLevel2;
+      case 1:
+        return crossbeamsDialogLevel2;
+      default:
+        return crossbeamsDialogLevel1;
+    }
+  },
+
+  activeDialogContent: function activeDialogContent() {
+    switch (this.currentDialogLevel()) {
+      case 2:
+        return 'dialog-content-level2';
+      case 1:
+        return 'dialog-content-level1';
+      default:
+        return 'dialog-content-level1';
+    }
+  },
+
+  activeDialogTitle: function activeDialogTitle() {
+    switch (this.currentDialogLevel()) {
+      case 2:
+        return 'dialogTitleLevel2';
+      case 1:
+        return 'dialogTitleLevel1';
+      default:
+        return 'dialogTitleLevel1';
+    }
+  },
+
+  activeDialog: function activeDialog() {
+    switch (this.currentDialogLevel()) {
+      case 2:
+        return crossbeamsDialogLevel2;
+      case 1:
+        return crossbeamsDialogLevel1;
+      default:
+        return crossbeamsDialogLevel1;
+    }
+  },
+
+  recordGridIdForPopup: function recordGridIdForPopup(gridId) {
+    let key = '';
+    switch (this.currentDialogLevel()) {
+      case 2:
+        key = 'level2PopupOnGrid';
+        break;
+      case 1:
+        key = 'level1PopupOnGrid';
+        break;
+      default:
+        key = 'level0PopupOnGrid';
+    }
+    crossbeamsLocalStorage.setItem(key, gridId);
+  },
+
+  currentGridIdForPopup: function currentGridIdForPopup() {
+    let key = '';
+    switch (this.currentDialogLevel()) {
+      case 2:
+        key = 'level2PopupOnGrid';
+        break;
+      case 1:
+        key = 'level1PopupOnGrid';
+        break;
+      default:
+        key = 'level0PopupOnGrid';
+    }
+    return crossbeamsLocalStorage.getItem(key);
+  },
+
+  baseGridIdForPopup: function baseGridIdForPopup() {
+    let key = '';
+    switch (this.currentDialogLevel()) {
+      case 2:
+        key = 'level1PopupOnGrid';
+        break;
+      case 1:
+        key = 'level0PopupOnGrid';
+        break;
+      default:
+        key = 'level0PopupOnGrid';
+    }
+    return crossbeamsLocalStorage.getItem(key);
+  },
+
   // Popup a modal dialog.
   /**
    * Show a popup dialog window and make an AJAX call to populate the dialog.
@@ -14,27 +135,36 @@ const crossbeamsUtils = {
    * @returns {void}
    */
   popupDialog: function popupDialog(title, href) {
-    document.getElementById('dialogTitle').innerHTML = title;
-    document.getElementById('dialog-content').innerHTML = '';
+    document.getElementById(this.nextDialogTitle()).innerHTML = title;
+    document.getElementById(this.nextDialogContent()).innerHTML = '';
     fetch(href, {
       method: 'GET',
       headers: new Headers({
-        'X-Custom-Request-Type': 'Fetch'
+        'X-Custom-Request-Type': 'Fetch',
       }),
       credentials: 'same-origin',
-    }).then(function(response) {
-      return response.text();
-      })
-      .then(function(data) {
-      document.getElementById('dialog-content').innerHTML = data;
-      crossbeamsUtils.makeMultiSelects();
-      crossbeamsUtils.makeSearchableSelects();
-    }).catch(function(data) {
-      Jackbox.error('The action was unsuccessful...');
-      const htmlText = data.responseText ? data.responseText : '';
-      document.getElementById('dialog-content').innerHTML = htmlText;
-    });
-    crossbeamsDialog.show();
+    }).then(response => response.text())
+      .then((data) => {
+        const dlg = document.getElementById(this.activeDialogContent());
+        dlg.innerHTML = data;
+        crossbeamsUtils.makeMultiSelects();
+        crossbeamsUtils.makeSearchableSelects();
+        const grids = dlg.querySelectorAll('[data-grid]');
+        grids.forEach((grid) => {
+          const gridId = grid.getAttribute('id');
+          const gridEvent = new CustomEvent('gridLoad', { detail: gridId });
+          document.dispatchEvent(gridEvent);
+        });
+        const sortable = Array.from(dlg.getElementsByTagName('input')).filter(a => a.dataset && a.dataset.sortablePrefix);
+        if (sortable.length > 0) {
+          crossbeamsUtils.makeListSortable(sortable[0].dataset.sortablePrefix);
+        }
+      }).catch((data) => {
+        Jackbox.error('The action was unsuccessful...');
+        const htmlText = data.responseText ? data.responseText : '';
+        document.getElementById(this.activeDialogContent()).innerHTML = htmlText;
+      });
+    this.nextDialog().show();
   },
 
   /**
@@ -42,7 +172,7 @@ const crossbeamsUtils = {
    * @returns {void}
    */
   closePopupDialog: function closePopupDialog() {
-    crossbeamsDialog.hide();
+    this.activeDialog().hide();
   },
 
   /**
@@ -52,9 +182,9 @@ const crossbeamsUtils = {
    * @returns {void}
    */
   showHtmlInDialog: function showHtmlInDialog(title, text) {
-    document.getElementById('dialogTitle').innerHTML = title;
-    document.getElementById('dialog-content').innerHTML = text;
-    crossbeamsDialog.show();
+    document.getElementById(this.nextDialogTitle()).innerHTML = title;
+    document.getElementById(this.nextDialogContent()).innerHTML = text;
+    this.nextDialog().show();
   },
 
   /**
@@ -86,12 +216,12 @@ const crossbeamsUtils = {
 
       // TODO: Split this up into modular pieces based on rules in data- attributes...
       if (sel.dataset && sel.dataset.changeValues) {
-        holdSel.on('selectr.change', function(option) {
+        holdSel.on('selectr.change', (option) => {
           sel.dataset.changeValues.split(',').forEach((el) => {
-            let target = document.getElementById(el);
+            const target = document.getElementById(el);
             if (target && (target.dataset && target.dataset.enableOnValues)) {
-              let vals = target.dataset.enableOnValues;
-              if(_.includes(vals, option.value)) {
+              const vals = target.dataset.enableOnValues;
+              if (_.includes(vals, option.value)) {
                 target.disabled = false;
               } else {
                 target.disabled = true;
@@ -131,12 +261,12 @@ const crossbeamsUtils = {
    * @param {string} [title] - optional title for the dialog.
    * @returns {void}
    */
-  alert: function alert({ prompt, title }) {
+  alert: function alert({ prompt, title, type = 'info' }) {
     swal({
       title: title === undefined ? '' : title,
       text: prompt,
-      type: 'info',
-    });
+      type,
+    }).catch(swal.noop);
   },
 
   /**
@@ -255,19 +385,18 @@ const crossbeamsUtils = {
    */
   makeListSortable: function makeListSortable(prefix) {
     const el = document.getElementById(`${prefix}-sortable-items`);
-    const sorted_ids = document.getElementById(`${prefix}-sorted_ids`);
-    const sortable = Sortable.create(el, {
+    const sortedIds = document.getElementById(`${prefix}-sorted_ids`);
+    Sortable.create(el, {
       animation: 150,
-      handle: ".crossbeams-drag-handle",
-      ghostClass: "crossbeams-sortable-ghost",  // Class name for the drop placeholder
-      dragClass: "crossbeams-sortable-drag",  // Class name for the dragging item
-      onEnd: function (/**Event*/evt) {
-        let id_list = [];
-        for(child of el.children) { id_list.push(child.id.replace('si_', '')); } // strip si_ part...
-        sorted_ids.value = id_list.join(',');
+      handle: '.crossbeams-drag-handle',
+      ghostClass: 'crossbeams-sortable-ghost',  // Class name for the drop placeholder
+      dragClass: 'crossbeams-sortable-drag',  // Class name for the dragging item
+      onEnd: () => {
+        const idList = [];
+        Array.from(el.children).forEach((child) => { idList.push(child.id.replace('si_', '')); });// strip si_ part...
+        sortedIds.value = idList.join(',');
       },
     });
   },
 
 };
-

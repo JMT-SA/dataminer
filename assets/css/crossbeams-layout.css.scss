@@ -119,6 +119,13 @@ header,
 /*  border: 0 none; */
   border-radius: 2px;
 }
+.cbl-to-upper {
+  text-transform: uppercase;
+}
+.cbl-to-lower {
+  text-transform: lowercase;
+}
+
 /* flexbox styles */
 /* fieldset div { */
 .crossbeams-field {
@@ -186,6 +193,9 @@ header,
 .crossbeams-form input:checked ~ label {
   font-weight: bold;
 }
+input[readonly] {
+  background-color: #ddd;
+}
 /* DRAG-AND-DROP FOR SortableList layout object */
 .crossbeams-draggable {
   padding: 0.2em;
@@ -242,11 +252,19 @@ header,
 #menuSearchResults > li:hover {
   background-color: rgba(0,0,0,0.1);
 }
+.search-menu-result-ancestor {
+  font-size: smaller;
+  color: #333;
+}
 
 // #menuSearch:focus + #menuSearchResults {
 //   display: block;
 // }
 /* END: SEARCH MENU RESULTS */
+
+.menu-prog-selected {
+  background: rgba(53, 136, 94, 0.85);
+}
 
 .thinbordertable {
   border-collapse: collapse;
@@ -280,6 +298,18 @@ tr.roweven {
 }
 /* END  : Table row alternate background and hover background */
 
+/* Overides for SelectR control */
+.selectr-container {
+  padding: 0;
+}
+.selectr-input {
+  width: calc(100% - 4em);
+}
+/*
+.selectr-selected[disabled] {
+    color: red;
+}
+*/
 /* A11Y DIALOG /
 
 /* -------------------------------------------------------------------------- *\
@@ -313,6 +343,9 @@ tr.roweven {
   -webkit-transform: translate(-50%, -50%);
   -ms-transform: translate(-50%, -50%);
   transform: translate(-50%, -50%);
+  max-height: 600px; /* depend on viewport? */
+  resize: both;
+  overflow-y: auto;
 }
 
 /* -------------------------------------------------------------------------- *\
@@ -322,7 +355,7 @@ tr.roweven {
 .dialog-content {
   padding: 1em;
   max-width: 90%;
-  width: 600px;
+  /* width: 600px; */
   border-radius: 2px;
 }
 
@@ -332,9 +365,9 @@ tr.roweven {
   }
 }
 
-.dialog-overlay {
-  background-color: rgba(43, 46, 56, 0.9);
-}
+// .dialog-overlay {
+//   background-color: rgba(43, 46, 56, 0.9);
+// }
 
 .dialog h1 {
   margin: 0;

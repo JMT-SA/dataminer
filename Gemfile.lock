@@ -65,6 +65,7 @@ GEM
       rack-test
     rack-test (0.6.3)
       rack (>= 1.0)
+    rake (12.2.1)
     rb-fsevent (0.9.8)
     rb-inotify (0.9.8)
       ffi (>= 0.5.0)
@@ -95,6 +96,7 @@ DEPENDENCIES
   pry-clipboard
   pry-doc
   rack-console
+  rake
   rerun
   roda (~> 2.25)
   sass
@@ -102,4 +104,4 @@ DEPENDENCIES
   tilt
 
 BUNDLED WITH
-   1.15.3
+   1.15.4

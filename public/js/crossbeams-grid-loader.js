@@ -64,7 +64,37 @@ const crossbeamsGridEvents = {
    */
   toFullScreen: function toFullScreen(gridId) {
     const grid = document.getElementById(gridId);
-    (grid.requestFullscreen || grid.webkitRequestFullscreen || grid.mozRequestFullScreen || grid.msRequestFullscreen || function(){}).call(grid);
+    (grid.requestFullscreen
+     || grid.webkitRequestFullscreen
+     || grid.mozRequestFullScreen
+     || grid.msRequestFullscreen || (() => {})).call(grid);
+  },
+
+  /**
+   * Change the values of certain columns of a row of a grid.
+   * @param {integer} id - the id of the grid's row.
+   * @param {object} changes - the changes to be applied to the grid's row.
+   * @returns {void}
+   */
+  updateGridInPlace: function updateGridInPlace(id, changes) {
+    const thisGridId = crossbeamsUtils.baseGridIdForPopup();
+    const gridOptions = crossbeamsGridStore.getGrid(thisGridId);
+    const rowNode = gridOptions.api.getRowNode(id);
+    Object.keys(changes).forEach((k) => {
+      rowNode.setDataValue(k, changes[k]);
+    });
+  },
+
+  /**
+   * Remove a row from a grid.
+   * @param {integer} id - the id of the grid's row.
+   * @returns {void}
+   */
+  removeGridRowInPlace: function removeGridRowInPlace(id) {
+    const thisGridId = crossbeamsUtils.currentGridIdForPopup();
+    const gridOptions = crossbeamsGridStore.getGrid(thisGridId);
+    const rowNode = gridOptions.api.getRowNode(id);
+    gridOptions.api.updateRowData({ remove: [rowNode] });
   },
 
   /**
@@ -73,41 +103,83 @@ const crossbeamsGridEvents = {
    * @param {string} url - the URL to receive the fetch request.
    * @returns {void}
    */
-  saveSelectedRows: function saveSelectedRows(gridId, url) {
+  saveSelectedRows: function saveSelectedRows(gridId, url, canBeCleared, remoteSave) {
     const gridOptions = crossbeamsGridStore.getGrid(gridId);
-    const ids = _.map(gridOptions.api.getSelectedRows(), (m) => m.id );
-    crossbeamsUtils.alert({prompt: ids.join(','), title: url});
+    const ids = _.map(gridOptions.api.getSelectedRows(), m => m.id);
     let msg;
-    // if(!can_be_cleared && ids.length === 0) {
-    //   alert("You have not selected any items to submit!");
-    // }
-    // else {
-      if(ids.length === 0) {
-        msg = 'Are you sure you want to submit an empty selection?'
+    if (!canBeCleared && ids.length === 0) {
+      crossbeamsUtils.alert({ prompt: 'You have not selected any items to submit!', type: 'error' });
+    } else {
+      if (ids.length === 0) {
+        msg = 'Are you sure you want to submit an empty selection?';
+      } else {
+        msg = `Are you sure you want to submit this selection?(${ids.length.toString()} items)`;
       }
-      else {
-        msg = 'Are you sure you want to submit this selection?(' + ids.length.toString() + ' items)'
-      }
+
+      // Save via a standard HTTP call.
+      const saveStd = () => {
+        const form = document.createElement('form');
+        const element1 = document.createElement('input');
+        const csrf = document.createElement('input');
+        form.method = 'POST';
+        form.action = url;
+        element1.value = ids.join(',');
+        element1.name = 'selection[list]';
+        csrf.value = document.querySelector('meta[name="_csrf"]').content;
+        csrf.name = '_csrf';
+        form.appendChild(element1);
+        form.appendChild(csrf);
+        document.body.appendChild(form);
+        form.submit();
+      };
+
+      // Save via a remote fetch call.
+      const saveRemote = () => {
+        const form = new FormData();
+        form.append('selection[list]', ids.join(','));
+        form.append('_csrf', document.querySelector('meta[name="_csrf"]').content);
+        fetch(url, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: new Headers({
+            'X-Custom-Request-Type': 'Fetch',
+          }),
+          body: form,
+        }).then(response => response.json())
+          .then((data) => {
+            if (data.redirect) {
+              window.location = data.redirect;
+            } else if (data.updateGridInPlace) {
+              this.updateGridInPlace(data.updateGridInPlace.id, data.updateGridInPlace.changes);
+            } else {
+              console.log('Not sure what to do with this:', data);
+            }
+            crossbeamsUtils.closePopupDialog();
+            // Only if not redirect...
+            if (data.flash) {
+              if (data.flash.notice) {
+                Jackbox.success(data.flash.notice);
+              }
+              if (data.flash.error) {
+                if (data.exception) {
+                  Jackbox.error(data.flash.error, { time: 20 });
+                } else {
+                  Jackbox.error(data.flash.error);
+                }
+              }
+            }
+          }).catch((data) => {
+            Jackbox.error(`An error occurred ${data}`, { time: 20 });
+          });
+      };
+
+      const saveFunc = remoteSave ? saveRemote : saveStd;
 
       crossbeamsUtils.confirm({
         prompt: msg,
-        okFunc: () => {
-          const form = document.createElement('form');
-          let element1 = document.createElement("input");
-          let csrf = document.createElement("input");
-          form.method = 'POST';
-          form.action = url;
-          element1.value = ids.join(',')
-          element1.name = 'selection[list]';
-          csrf.value = document.querySelector('meta[name="_csrf"]').content;
-          csrf.name = '_csrf';
-          form.appendChild(element1);
-          form.appendChild(csrf);
-          document.body.appendChild(form);
-          form.submit();
-        },
+        okFunc: saveFunc,
       });
-    // }
+    }
   },
 
   /**
@@ -135,9 +207,9 @@ const crossbeamsGridEvents = {
   makeColumnScrollList: function makeColumnScrollList(gridId, colDefs) {
     const select = document.getElementById(`${gridId}-scrollcol`);
     let option;
-    colDefs.sort((a, b) => a.headerName.localeCompare(b.headerName) ).forEach((col) => {
+    colDefs.sort((a, b) => a.headerName.localeCompare(b.headerName)).forEach((col) => {
       if (col.field !== undefined && !col.hide) {
-        option = document.createElement("option");
+        option = document.createElement('option');
         option.text = col.headerName;
         option.value = col.field;
         select.appendChild(option);
@@ -260,33 +332,44 @@ const crossbeamsGridEvents = {
     let cnt = 0;
     if (rowNode === undefined) {
       rowNode = gridOptions.api.getDisplayedRowAtIndex(gridOptions.api.getFirstDisplayedRow());
+      if (rowNode.group) {
+        crossbeamsUtils.alert({ prompt: 'Select a detail row first', type: 'info' });
+        return null;
+      }
     }
+    const useKeys = gridOptions.columnApi.getAllDisplayedColumns().filter(c => c.colDef.headerName !== '' && c.colDef.headerName !== 'Group').map(c => c.colDef.field);
 
-    // TODO: smarten table, use grid value getters/formatters etc for boolean, right-justify etc.
-    //       - row highlight.
+    // TODO:
     //       - sort keys. (and un-sort)
     //       - next/prev navigation of table
     //       - button in UI
-    //       - skip hidden columns
-    //       - skip grouped rows in going for first selected
     //       - skip if data does not have a columndef (e.g. dataminer reports grid)
-    // const content = `<div style="position:absolute;overflow-y:auto;top:40px;bottom:10px;left:10px;right:10px;min-height:200px;">
     const content = `<div style="overflow-y:auto;top:40px;bottom:10px;left:10px;right:10px;min-height:200px;">
-      <table class="thinbordertable">
+      <table class="thinbordertable" style="margin:0 0.5em">
       <thead>
       <tr><th>Column</th><th>Value</th></tr>
       </thead>
       <tbody>
-      ${Object.keys(rowNode.data).map((k) => `
-        <tr class="hover-row ${(() => {cnt += 1; return cnt % 2 === 0 ? 'roweven' : 'rowodd';})()}"><td>
+      ${useKeys.map(k => `
+        <tr class="hover-row ${(() => { cnt += 1; return cnt % 2 === 0 ? 'roweven' : 'rowodd'; })()}"><td>
           ${gridOptions.api.getColumnDef(k).headerName}
-          </td><td>
-          ${rowNode.data[k]}
+          </td><td class="${gridOptions.api.getColumnDef(k).cellClass ? gridOptions.api.getColumnDef(k).cellClass : ''}">
+          ${((data) => {
+            if (data === null) {
+              return '';
+            } else if (data === true) {
+              return '<span class="ac_icon_check">&nbsp;</span>';
+            } else if (data === false) {
+              return '<span class="ac_icon_uncheck">&nbsp;</span>';
+            }
+            return data;
+          })(rowNode.data[k])}
         </td></tr>`).join('')}
       </tbody>
       </table>
-      </div>`
+      </div>`;
     crossbeamsUtils.showHtmlInDialog('Selected Row', content);
+    return null;
   },
 
   /**
@@ -326,11 +409,17 @@ const crossbeamsGridFormatters = {
 
   makeContextNode: function makeContextNode(key, prefix, items, item, params) {
     let node = {};
-    let urlComponents;
+    let urlComponents = [];
     let url;
     let subKey = 'a';
     let subPrefix = '';
     let subnode;
+    let titleValue;
+    if (item.title_field) {
+      titleValue = params.data[item.title_field];
+    } else {
+      titleValue = item.title ? item.title : '';
+    }
     if (item.is_separator) {
       if (items.length > 0 && _.last(items).value !== '---') {
         return { key: `${prefix}${key}`, name: item.text, value: '---' };
@@ -345,12 +434,18 @@ const crossbeamsGridFormatters = {
     } else if (item.hide_if_true && params.data[item.hide_if_true] === true) {
       // No show of item
       return null;
+    } else if (item.hide_if_false && params.data[item.hide_if_false] === false) {
+      // No show of item
+      return null;
     } else if (item.is_submenu) {
       node = { key: `${prefix}${key}`, name: item.text, items: [], is_submenu: true };
       item.items.forEach((subitem) => {
         subKey = crossbeamsGridFormatters.nextChar(subKey);
         subPrefix = `${prefix}${key}_`;
-        subnode = crossbeamsGridFormatters.makeContextNode(subKey, subPrefix, node.items, subitem, params);
+        subnode = crossbeamsGridFormatters.makeContextNode(subKey,
+                                                           subPrefix,
+                                                           node.items,
+                                                           subitem, params);
         if (subnode !== null) {
           node.items.push(subnode);
         }
@@ -376,7 +471,7 @@ const crossbeamsGridFormatters = {
       prompt: item.prompt,
       method: item.method,
       title: item.title,
-      title_field: item.title_field ? params.data[item.title_field] : item.title ? item.title : '',
+      title_field: titleValue,
       icon: item.icon,
       popup: item.popup,
     };
@@ -600,14 +695,14 @@ Level2PanelCellRenderer.prototype.getTemplate = function getTemplate(params) {
   const parentRecord = params.node.parent.data;
 
   const template =
-    '<div class="full-width-panel">' +
-    '  <div class="full-width-grid" style="height:100%"></div>' +
-    '  <div class="full-width-grid-toolbar">' +
-    '       <b>Functional area: </b>' + parentRecord.functional_area_name + // TODO: ................
-    '       <input class="full-width-search" placeholder="Search..."/>' +
-    '       <a href="/security/functional_areas/programs/$:functional_area_id$/new">Add a Program</a>' +
-    '  </div>' +
-    '</div>';
+    `<div class="full-width-panel">
+       <div class="full-width-grid" style="height:100%"></div>
+       <div class="full-width-grid-toolbar">
+            <b>Functional area: </b>${parentRecord.functional_area_name}
+            <input class="full-width-search" placeholder="Search..."/>
+            <a href="/security/functional_areas/programs/$:functional_area_id$/new">Add a Program</a>
+       </div>
+     </div>`;
 
   return template;
 };
@@ -691,14 +786,14 @@ Level3PanelCellRenderer.prototype.getTemplate = function getTemplate(params) {
   const parentRecord = params.node.parent.data;
 
   const template =
-    '<div class="full-width-panel"style="background-color: silver">' +
-    '  <div class="full-width-grid" style="height:100%"></div>' +
-    '  <div class="full-width-grid-toolbar">' +
-    '       <b>Program: </b>' + parentRecord.program_name + // TODO: .........................
-    '       <input class="full-width-search" placeholder="Search..."/>' +
-    '       <button>Add a Program Function</button>' +
-    '  </div>' +
-    '</div>';
+    `<div class="full-width-panel"style="background-color: silver">
+       <div class="full-width-grid" style="height:100%"></div>
+       <div class="full-width-grid-toolbar">
+            <b>Program: </b>s${parentRecord.program_name}
+            <input class="full-width-search" placeholder="Search..."/>
+            <button>Add a Program Function</button>
+       </div>
+     </div>`;
 
   return template;
 };
@@ -793,7 +888,7 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
           // In that case, AG Grid will hide any rows below the null group.
           if (col[attr] === 'blankWhenNull') {
             newCol.valueGetter = function valueGetter(params) {
-              const result = params.data ? params.data[params.colDef.field]: "";
+              const result = params.data ? params.data[params.colDef.field] : '';
               if (result === null || result === undefined) {
                 return '';
               }
@@ -832,9 +927,9 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
         }
         gridOptions.api.setColumnDefs(newColDefs); // TODO.............. ????
         gridOptions.api.setRowData(httpResult.rowDefs);
-        gridOptions.api.forEachLeafNode((n) => { rows += 1; });
+        gridOptions.api.forEachLeafNode(() => { rows += 1; });
         if (httpResult.multiselect_ids) {
-          gridOptions.api.forEachNode( function (node) {
+          gridOptions.api.forEachNode((node) => {
             if (node.data && _.includes(httpResult.multiselect_ids, node.data.id)) {
               node.setSelected(true);
             }
@@ -849,108 +944,121 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
   };
 
   const listenForGrid = function listenForGrid() {
-    let gridOptions = null;
-    let gridId = null;
-    let forPrint = false;
-    let multisel = false;
     const grids = document.querySelectorAll('[data-grid]');
+    let gridId = null;
+    let event = null;
     grids.forEach((grid) => {
       gridId = grid.getAttribute('id');
-      forPrint = grid.dataset.gridPrint;
-      multisel = grid.dataset.gridMulti;
-      // lookup of grid ids? populate here and clear when grid unloaded...
-      if (grid.dataset.nestedGrid) {
-        gridOptions = {
-          context: { domGridId: gridId },
-          columnDefs: null,
-          rowDefs: null,
-          enableColResize: true,
-          enableSorting: true,
-          enableFilter: true,
-          suppressScrollLag: true, // TODO: remove with version 13...
-          enableRangeSelection: true,
-          enableStatusBar: true,
-          suppressAggFuncInHeader: true,
-          isFullWidthCell: function isFullWidthCell(rowNode) {
-            return rowNode.level === 1;
-          },
-          onGridReady: function onGridReady(params) {
-            params.api.sizeColumnsToFit();
-          },
-          // see ag-Grid docs cellRenderer for details on how to build cellRenderers
-          fullWidthCellRenderer: Level2PanelCellRenderer,
-          getRowHeight: function getRowHeight(params) {
-            const rowIsDetailRow = params.node.level === 1;
-            // return 100 when detail row, otherwise return 25
-            return rowIsDetailRow ? 400 : 25;
-          },
-          getNodeChildDetails: function getNodeChildDetails(record) {
-            if (record.level2) {
-              return {
-                group: true,
-                // the key is used by the default group cellRenderer
-                key: record.functional_area_name, // ......................TODO: level1 expand_col...
-                // provide ag-Grid with the children of this group
-                children: [record.level2],
-                // for demo, expand the third row by default
-                // expanded: record.account === 177005
-              };
-            }
-            return null;
-          },
-        };
-      } else {
-        gridOptions = {
-          context: { domGridId: gridId },
-          //columnDefs: null,
-          rowDefs: null,
-          enableColResize: true,
-          enableSorting: true,
-          enableFilter: true,
-          suppressScrollLag: true,
-          rowSelection: 'single',
-          enableRangeSelection: true,
-          enableStatusBar: true,
-          suppressAggFuncInHeader: true,
-          onFilterChanged: function () {
-            let filterLength = 0;
-            let rows = 0;
-            this.api.forEachLeafNode((n) => { rows += 1; });
-            this.api.forEachNodeAfterFilter((n) => { if (!n.group) { filterLength += 1; } });
-            crossbeamsGridEvents.displayRowCounts(gridId, filterLength, rows);
-          },
-          // suppressCopyRowsToClipboard: true
-        };
-      }
-
-      if (forPrint) {
-        gridOptions.forPrint = true;
-        gridOptions.enableStatusBar = false;
-      }
-
-      if (multisel) {
-        gridOptions.rowSelection = 'multiple';
-        gridOptions.rowDeselection = true;
-        gridOptions.suppressRowClickSelection = true;
-        gridOptions.groupSelectsChildren = true;
-        gridOptions.groupSelectsFiltered = true;
-      }
-
-      // Index rows by the id column...
-      gridOptions.getRowNodeId = function getRowNodeId(data) { return data.id; };
-
-      new agGrid.Grid(grid, gridOptions);
-      crossbeamsGridStore.addGrid(gridId, gridOptions);
-      loadGrid(grid, gridOptions);
+      event = new CustomEvent('gridLoad', { detail: gridId });
+      document.dispatchEvent(event);
     });
+  };
+
+  const makeGrid = function makeGrid(event) {
+    const gridId = event.detail;
+    let gridOptions = null;
+    let forPrint = false;
+    let multisel = false;
+    const grid = document.getElementById(gridId);
+
+    forPrint = grid.dataset.gridPrint;
+    multisel = grid.dataset.gridMulti;
+    // lookup of grid ids? populate here and clear when grid unloaded...
+    if (grid.dataset.nestedGrid) {
+      gridOptions = {
+        context: { domGridId: gridId },
+        columnDefs: null,
+        rowDefs: null,
+        enableColResize: true,
+        enableSorting: true,
+        enableFilter: true,
+        suppressScrollLag: true, // TODO: remove with version 13...
+        enableRangeSelection: true,
+        enableStatusBar: true,
+        suppressAggFuncInHeader: true,
+        isFullWidthCell: function isFullWidthCell(rowNode) {
+          return rowNode.level === 1;
+        },
+        onGridReady: function onGridReady(params) {
+          params.api.sizeColumnsToFit();
+        },
+        // see ag-Grid docs cellRenderer for details on how to build cellRenderers
+        fullWidthCellRenderer: Level2PanelCellRenderer,
+        getRowHeight: function getRowHeight(params) {
+          const rowIsDetailRow = params.node.level === 1;
+          // return 100 when detail row, otherwise return 25
+          return rowIsDetailRow ? 400 : 25;
+        },
+        getNodeChildDetails: function getNodeChildDetails(record) {
+          if (record.level2) {
+            return {
+              group: true,
+              // the key is used by the default group cellRenderer
+              key: record.functional_area_name, // ......................TODO: level1 expand_col...
+              // provide ag-Grid with the children of this group
+              children: [record.level2],
+              // for demo, expand the third row by default
+              // expanded: record.account === 177005
+            };
+          }
+          return null;
+        },
+      };
+    } else {
+      gridOptions = {
+        context: { domGridId: gridId },
+        // columnDefs: null,
+        rowDefs: null,
+        enableColResize: true,
+        enableSorting: true,
+        enableFilter: true,
+        suppressScrollLag: true,
+        rowSelection: 'single',
+        enableRangeSelection: true,
+        enableStatusBar: true,
+        suppressAggFuncInHeader: true,
+        onFilterChanged() {
+          let filterLength = 0;
+          let rows = 0;
+          this.api.forEachLeafNode(() => { rows += 1; });
+          this.api.forEachNodeAfterFilter((n) => { if (!n.group) { filterLength += 1; } });
+          crossbeamsGridEvents.displayRowCounts(gridId, filterLength, rows);
+        },
+        // suppressCopyRowsToClipboard: true
+      };
+    }
+
+    if (forPrint) {
+      gridOptions.forPrint = true;
+      gridOptions.enableStatusBar = false;
+    }
+
+    if (multisel) {
+      gridOptions.rowSelection = 'multiple';
+      gridOptions.rowDeselection = true;
+      gridOptions.suppressRowClickSelection = true;
+      gridOptions.groupSelectsChildren = true;
+      gridOptions.groupSelectsFiltered = true;
+    }
+
+    // Index rows by the id column...
+    gridOptions.getRowNodeId = function getRowNodeId(data) { return data.id; };
+
+    new agGrid.Grid(grid, gridOptions);
+    crossbeamsGridStore.addGrid(gridId, gridOptions);
+    loadGrid(grid, gridOptions);
   };
 
   document.addEventListener('DOMContentLoaded', () => {
     listenForGrid();
   });
 
+  document.addEventListener('gridLoad', (gridId) => {
+    makeGrid(gridId);
+  });
+
   return {
-    listenForGrid: listenForGrid
+    listenForGrid,
   };
 }).call();
 
@@ -1025,47 +1133,37 @@ $(() => {
             let form = null;
             if (item.method === undefined) {
               if (item.popup) {
-                crossbeamsLocalStorage.setItem('popupOnGrid', item.domGridId);
-                // crossbeamsUtils.jmtPopupDialog(100, 100, item.title_field, '', item.url);
+                crossbeamsUtils.recordGridIdForPopup(item.domGridId);
                 crossbeamsUtils.popupDialog(item.title_field, item.url);
               } else {
                 window.location = item.url;
               }
-            } else {
-              // TODO: This section needs a rethink. It works, but:
-              // - not intuitive to use .popup here
-              // - this is probably ONLY for deletes. Any other? [It can only be a url with id - there is no form data to post...
-              // - should ALL deletes from grids be done through fetches? Probably.
-              if (item.popup) {
-                crossbeamsLocalStorage.setItem('popupOnGrid', item.domGridId);
-                form = new FormData();
-                form.append('_method', item.method);
-                form.append('_csrf', document.querySelector('meta[name="_csrf"]').content);
-                fetch(item.url, {
-                  method: 'POST',
-                  credentials: 'same-origin',
-                  headers: new Headers({
-                    'X-Custom-Request-Type': 'Fetch'
-                  }),
-                  body: form,
-                }).then((response) => response.json())
-                  .then(function(data) {
+            // TODO: This section needs a rethink. It works, but:
+            // - not intuitive to use .popup here
+            // - this is probably ONLY for deletes. Any other?
+            //   [It can only be a url with id - there is no form data to post...
+            // - should ALL deletes from grids be done through fetches? Probably.
+            } else if (item.popup) {
+              crossbeamsUtils.recordGridIdForPopup(item.domGridId);
+              form = new FormData();
+              form.append('_method', item.method);
+              form.append('_csrf', document.querySelector('meta[name="_csrf"]').content);
+              fetch(item.url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: new Headers({
+                  'X-Custom-Request-Type': 'Fetch',
+                }),
+                body: form,
+              }).then(response => response.json())
+                .then((data) => {
                   if (data.redirect) {
                     window.location = data.redirect;
                   } else if (data.removeGridRowInPlace) {
-                    const gridId = crossbeamsLocalStorage.getItem('popupOnGrid');
-                    // TODO: move to own function..
-                    const gridOptions = crossbeamsGridStore.getGrid(gridId);
-                    let rowNode = gridOptions.api.getRowNode(data.removeGridRowInPlace.id);
-                    gridOptions.api.updateRowData({remove: [rowNode]})
+                    crossbeamsGridEvents.removeGridRowInPlace(data.removeGridRowInPlace.id);
                   } else if (data.updateGridInPlace) {
-                    const gridId = crossbeamsLocalStorage.getItem('popupOnGrid');
-                    // TODO: move to own function..
-                    const gridOptions = crossbeamsGridStore.getGrid(gridId);
-                    let rowNode = gridOptions.api.getRowNode(data.updateGridInPlace.id);
-                    for (const k in data.updateGridInPlace.changes) {
-                        rowNode.setDataValue(k, data.updateGridInPlace.changes[k]);
-                    };
+                    crossbeamsGridEvents.updateGridInPlace(data.updateGridInPlace.id,
+                                           data.updateGridInPlace.changes);
                   } else {
                     console.log('Not sure what to do with this:', data);
                   }
@@ -1082,15 +1180,14 @@ $(() => {
                       }
                     }
                   }
-                }).catch(function(data) {
-                    Jackbox.error(`An error occurred ${data}`, { time: 20 });
+                }).catch((data) => {
+                  Jackbox.error(`An error occurred ${data}`, { time: 20 });
                 });
-              } else {
-                document.body.innerHTML += `<form id="dynForm" action="${item.url}" method="post">
-                  <input name="_method" type="hidden" value="${item.method}" />
-                  <input name="_csrf" type="hidden" value="${document.querySelector('meta[name="_csrf"]').content}" /></form>`;
-                document.getElementById('dynForm').submit(); // TODO: csrf...
-              }
+            } else {
+              document.body.innerHTML += `<form id="dynForm" action="${item.url}" method="post">
+                <input name="_method" type="hidden" value="${item.method}" />
+                <input name="_csrf" type="hidden" value="${document.querySelector('meta[name="_csrf"]').content}" /></form>`;
+              document.getElementById('dynForm').submit(); // TODO: csrf...
             }
           };
           if (item.prompt !== undefined) {
