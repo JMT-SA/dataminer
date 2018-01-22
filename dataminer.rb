@@ -6,10 +6,11 @@ require './lib/db_connections'
 
 class Dataminer < Roda
   plugin :render
-  plugin :assets, css: 'style.scss'
+  plugin :assets, css: 'style.scss', precompiled: 'prestyle.css'
   plugin :public
   plugin :content_for, append: true
   plugin :indifferent_params
+  # plugin :symbolized_params
 
   use Rack::Session::Cookie, secret: 'some_not_so_nice_long_random_string_DSKJH4378EYR7EGKUFH', key: '_dataminer_session'
   use Crossbeams::DataminerInterface::App, url_prefix: 'dataminer/',
