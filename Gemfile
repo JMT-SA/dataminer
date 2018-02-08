@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 gem 'dotenv'
 gem 'pg'
-gem 'roda', '~> 2.25'
+gem 'roda'
 gem 'sass'
 gem 'sequel'
 gem 'tilt'
