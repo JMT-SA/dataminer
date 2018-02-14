@@ -1,0 +1,34 @@
+---
+:dataminer_definition: users
+:actions:
+- :url: "/development/masterfiles/users/$:id$"
+  :text: view
+  :icon: fa-eye
+  :title: View
+  :popup: true
+- :url: "/development/masterfiles/users/$:id$/edit"
+  :text: edit
+  :icon: fa-edit
+  :title: Edit
+  :popup: true
+- :url: "/development/masterfiles/users/$:id$"
+  :text: delete
+  :icon: fa-remove
+  :is_delete: true
+  :popup: true
+- :url: "/list/programs/multi?key=program_users&id=$:id$"
+  :text: select programs
+  :icon: fa-list
+  :popup: true
+:page_controls:
+- :control_type: :link
+  :url: "/development/masterfiles/users/new"
+  :text: New User
+  :style: :button
+  :behaviour: :popup
+:multiselect:
+  :progfunc_users:
+    :url: "/security/functional_areas/program_functions/link_users/$:id$"
+    :preselect: "SELECT user_id AS id FROM program_functions_users WHERE program_function_id = $:id$"
+    :section_caption: "SELECT 'Assign users to ' || program_function_name FROM program_functions WHERE id = $:id$"
+    :can_be_cleared: true

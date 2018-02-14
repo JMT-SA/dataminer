@@ -1,2 +1,22 @@
-ag-enterprise-activation.js
 .sass-cache
+ag-enterprise-activation.js
+public/assets/*.*
+.dm_report_list.yml
+log/*
+hold/*
+*.zip
+
+# Used by dotenv library to load environment variables.
+.env.local
+
+## Rubymine
+.idea/
+.rake_tasks~
+
+## Vim
+tags
+.srclist
+.smartgf*
+
+# Assets plugin metadata file
+prestyle.css

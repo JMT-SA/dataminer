@@ -1,0 +1,103 @@
+# frozen_string_literal: true
+
+class LibraryVersions
+  attr_reader :requested_libs
+
+  LIB_STRATEGIES = {
+    layout: [:gemver, 'Crossbeams::Layout'],
+    dataminer: [:gemver, 'Crossbeams::Dataminer'],
+    label_designer: [:gemver, 'Crossbeams::LabelDesigner'],
+    rackmid: [:gemver, 'Crossbeams::RackMiddleware'],
+    datagrid: [:gemver, 'Roda::DataGrid'],
+    ag_grid: %i[jsver ag_grid],
+    selectr: %i[jsver selectr],
+    sweetalert: %i[jsver sweetalert],
+    sortable: %i[jsver sortable],
+    konva: %i[jsver konva],
+    lodash: %i[jsver lodash],
+    multi: %i[jsver multi]
+  }.freeze
+
+  def initialize(*requested_libs)
+    @requested_libs = requested_libs
+  end
+
+  def columns
+    %i[library version]
+  end
+
+  def to_a
+    version_list = requested_libs.map { |r| resolve(r) }
+    version_list.unshift(format_lib('Application', ENV['VERSION']))
+    version_list
+  end
+
+  private
+
+  def resolve(r)
+    send(*LIB_STRATEGIES[r])
+  end
+
+  def format_lib(lib, version)
+    { library: lib, version: version }
+  end
+
+  def gemver(klass)
+    format_lib(klass, Object.const_get(klass).const_get('VERSION'))
+  end
+
+  def jsver(key)
+    case key
+    when :ag_grid
+      ag_grid_version
+    when :selectr
+      selectr_version
+    when :sweetalert
+      sweetalert_version
+    when :sortable
+      sortable_version
+    when :konva
+      konva_version
+    when :lodash
+      lodash_version
+    when :multi
+      multi_version
+    else
+      format_lib('Unknown directive', key)
+    end
+  end
+
+  def ag_grid_version
+    format_lib('AG-Grid', File.readlines('public/js/ag-grid-enterprise.min.js', encoding: 'UTF-8').first.chomp.split(' v').last)
+  end
+
+  def selectr_version
+    format_lib('Selectr', File.readlines('public/js/selectr.min.js', encoding: 'UTF-8')[1].chomp.split(' ').last)
+  end
+
+  def sweetalert_version
+    s = File.read('public/js/sweetalert2.min.js', encoding: 'UTF-8')
+    m = s.match(/\.version="(.+)"/)
+    format_lib('Sweet Alert2', m.nil? ? 'UNKNOWN' : m[1])
+  end
+
+  def sortable_version
+    m = File.readlines('public/js/Sortable.min.js', encoding: 'UTF-8').first.match(/Sortable (.+) - MIT/)
+    format_lib('Sortable', m.nil? ? 'UNKNOWN' : m[1])
+  end
+
+  def konva_version
+    format_lib('Konva', File.readlines('public/js/konva.min.js', encoding: 'UTF-8')[1].chomp.split(' v').last)
+  end
+
+  def lodash_version
+    s = File.read('public/js/lodash.js', encoding: 'UTF-8')
+    m = s.match(/VERSION = '(.+)'/)
+    format_lib('Lodash', m.nil? ? 'UNKNOWN' : m[1])
+  end
+
+  def multi_version
+    m = File.readlines('public/js/multi.min.js', encoding: 'UTF-8').first.match(/multi.js (.+) /)
+    format_lib('Multi', m.nil? ? 'UNKNOWN' : m[1])
+  end
+end
