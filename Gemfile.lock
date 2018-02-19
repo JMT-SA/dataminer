@@ -6,20 +6,8 @@ GIT
       pg_query (= 1.0.1)
 
 GIT
-  remote: https://github.com/NoSoft-SA/crossbeams-dataminer_interface.git
-  revision: 783066b8efb996102fb7c43e53ff90725441c8ca
-  specs:
-    crossbeams-dataminer_interface (0.1.1)
-      axlsx
-      crossbeams-dataminer
-      crossbeams-layout
-      roda
-      rouge
-      tilt
-
-GIT
   remote: https://github.com/NoSoft-SA/crossbeams-layout.git
-  revision: 40e11268bac7f3575419791ac82a2f2ad0aff221
+  revision: 8a2c77abd88a1f7132f7d86e339c2d339435f23c
   specs:
     crossbeams-layout (0.1.1)
       rouge
@@ -190,7 +178,6 @@ DEPENDENCIES
   capistrano-chruby
   capistrano-passenger (>= 0.1.1)
   crossbeams-dataminer!
-  crossbeams-dataminer_interface!
   crossbeams-layout!
   dotenv
   dry-struct

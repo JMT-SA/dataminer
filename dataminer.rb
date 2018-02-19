@@ -6,7 +6,7 @@
 require 'roda'
 require 'rodauth'
 require 'crossbeams/dataminer'
-require 'crossbeams/dataminer_interface'
+# require 'crossbeams/dataminer_interface'
 require 'crossbeams/layout'
 require 'roda/data_grid'
 require 'yaml'
@@ -36,10 +36,14 @@ Dir['./lib/applets/*.rb'].each { |f| require f }
 
 ENV['ROOT'] = File.dirname(__FILE__)
 ENV['VERSION'] = File.read('VERSION')
+# ENV['REPORTS_LOCATION'] ||= File.expand_path('../../../roda_frame/reports', __FILE__)
+ENV['REPORTS_LOCATION'] ||= File.expand_path('../../label_designer/grid_definitions/dataminer_queries', __FILE__)
+ENV['GRID_QUERIES_LOCATION'] ||= File.expand_path('../../label_designer/grid_definitions/dataminer_queries', __FILE__)
 
 class Dataminer < Roda
   include CommonHelpers
   include MenuHelpers
+  include DataminerHelpers
 
   use Rack::Session::Cookie, secret: 'some_not_so_nice_long_random_string_DSKJH4378EYR7EGKUFH', key: '_dataminer_session'
   use Rack::MethodOverride # USe with all_verbs plugin to allow "r.delete" etc.
@@ -60,13 +64,13 @@ class Dataminer < Roda
   plugin :multi_route
   plugin :content_for, append: true
 
-  use Crossbeams::DataminerInterface::App, url_prefix: 'dataminer/',
-                                           dm_reports_location: File.expand_path('../../../roda_frame/reports', __FILE__),
-                                           # dm_grid_queries_location: File.expand_path('../../framework/grid_definitions/dataminer_queries', __FILE__),
-                                           dm_grid_queries_location: File.expand_path('../../label_designer/grid_definitions/dataminer_queries', __FILE__),
-                                           dm_js_location: 'js',
-                                           dm_css_location: 'css',
-                                           db_connection: DB
+  # use Crossbeams::DataminerInterface::App, url_prefix: 'dataminer/',
+  #                                          dm_reports_location: File.expand_path('../../../roda_frame/reports', __FILE__),
+  #                                          # dm_grid_queries_location: File.expand_path('../../framework/grid_definitions/dataminer_queries', __FILE__),
+  #                                          dm_grid_queries_location: File.expand_path('../../label_designer/grid_definitions/dataminer_queries', __FILE__),
+  #                                          dm_js_location: 'js',
+  #                                          dm_css_location: 'css',
+  #                                          db_connection: DB
   plugin :symbolized_params    # - automatically converts all keys of params to symbols.
   plugin :flash
   plugin :csrf, raise: true # , :skip => ['POST:/report_error'] # FIXME: Remove the +raise+ param when going live!
@@ -102,7 +106,7 @@ class Dataminer < Roda
     r.redirect('/login') if current_user.nil? # Session might have the incorrect user_id
 
     r.root do
-      r.redirect '/dataminer/' # THIS MIGHT CHANGE.... (DMI as part of frame (routes))
+      r.redirect '/dataminer/reports'
     end
 
     r.multi_route

@@ -341,6 +341,9 @@ const crossbeamsUtils = {
               } else {
                 target.disabled = true;
               }
+              if (target.selectr) {
+                target.selectr.disable(target.disabled === true);
+              }
             }
           });
         });
@@ -388,10 +391,11 @@ const crossbeamsUtils = {
    * @param {string} [title] - optional title for the dialog.
    * @returns {void}
    */
-  alert: function alert({ prompt, title, type = 'info' }) {
+  alert: function alert({ prompt, title, html, type = 'info' }) {
     swal({
       title: title === undefined ? '' : title,
       text: prompt,
+      html,
       type,
     }).catch(swal.noop);
   },

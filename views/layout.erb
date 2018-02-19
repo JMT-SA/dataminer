@@ -6,17 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <%= csrf_metatag %>
 
-    <title>Label Designer</title>
+    <title>Dataminer</title>
 
     <link rel="stylesheet" href="/css/jackbox.css">
     <link rel="stylesheet" href="/css/font-awesome.min.css">
-    <!-- link rel="stylesheet" href="/css/jquery-ui.css" -->
     <link rel="stylesheet" href="/css/tachyons.min.css">
     <link rel="stylesheet" href="/css/sweetalert2.min.css">
     <link rel="stylesheet" href="/css/jquery.contextMenu.css">
     <link rel="stylesheet" href="/css/menu.css">
     <link rel="stylesheet" href="/css/skin.css">
-    <!-- link rel="stylesheet" href="/css/popupwindow.css" -->
     <link rel="stylesheet" href="/css/selectr.min.css">
     <link rel="stylesheet" href="/css/multi.min.css">
     <%= assets(:css) %>
@@ -117,6 +115,12 @@
         crossbeamsDialogLevel1 = new window.A11yDialog(dialogEl1);
         const dialogEl2 = document.getElementById('crossbeams-popup-dialog-level2');
         crossbeamsDialogLevel2 = new window.A11yDialog(dialogEl2);
+
+        const sortable = Array.from(document.getElementsByTagName('input')).filter(a => a.dataset && a.dataset.sortablePrefix);
+        if (sortable.length > 0) {
+          crossbeamsUtils.makeListSortable(sortable[0].dataset.sortablePrefix);
+        }
+
       });
 
       // Build the menu.

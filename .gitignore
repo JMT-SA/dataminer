@@ -9,6 +9,17 @@ hold/*
 # Used by dotenv library to load environment variables.
 .env.local
 
+## Documentation cache and generated files:
+/.yardoc/
+/_yardoc/
+/doc/
+/rdoc/
+
+## Environment normalization:
+/.bundle/
+/vendor/bundle
+/lib/bundler/man/
+
 ## Rubymine
 .idea/
 .rake_tasks~

@@ -1,0 +1,70 @@
+<h1>Add a query parameter definition</h1>
+<p>
+  column: choose from list of namespaced columns - or - enter something else (like id...) [must choose a table alias]
+</p>
+
+<form action='/dataminer/admin/<%= @id%>/parameter/create/' method=post class="crossbeams-form">
+  <%= csrf_tag %>
+  <div class="crossbeams-row">
+    <div class="crossbeams-col">
+      <div class="crossbeams-field">
+        <label for="ns_col">Namespaced column</label>
+        <select id="ns_col" name="column" class="cbl-input">
+          <%= select_options(nil, @cols) %>
+        </select>
+      </div>
+      <div class="crossbeams-field">
+        <label for="non_sel_col">Non-select column</label>
+        <select id="non_sel_col" name="table" class="cbl-input">
+          <%= select_options(nil, @tables) %>
+        </select>
+        .
+        <input type="text" name="field" class="cbl-input" placeholder='Field name' ></input>
+      </div>
+      <div class="crossbeams-field">
+        <label for="caption">Caption</label>
+        <input type='text' id="caption" name='caption' class="cbl-input" placeholder='Caption' required size="80"/>
+      </div>
+      <div class="crossbeams-field">
+        <label for="data_type">Data type</label>
+        <select id="data_type" name="data_type" class="cbl-input">
+          <%= select_options(nil, [['String', 'string'], ['Integer', 'integer'], ['Number', 'number'], ['Date', 'date'], ['Date-Time', 'datetime'], ['Boolean', 'boolean']], false) %>
+        </select>
+      </div>
+      <div class="crossbeams-field">
+        <label for="control_type">Control type</label>
+        <select name="control_type" class="cbl-input">
+          <%= select_options(nil, [['Text box', 'text'], ['Dropdown list', 'list'], ['Date range', 'daterange']], false) %>
+        </select>
+      </div>
+      <div class="crossbeams-field">
+        <div style="display:none" data-cb-hint="list_def">
+          <p>
+            The list definition can be an Array or a valid SQL query that returns one or two columns per row.<br>
+            If two, the first will be displayed and the second will be the returned value.
+          </p>
+          <p>
+            The list can also be an array of fixed items. An array must start with <strong>[</strong> and end with <strong>]</strong>.<br>
+            Items must be separated by commas.<br>
+            A 2-dimensional array must be entered as sets of 2 items within <strong>[</strong> and <strong>]</strong> pairs.
+          </p>
+          <p><strong>Examples</strong></p>
+            <ul>
+              <li>SQL: SELECT code from table ORDER BY code</li>
+              <li>SQL: SELECT code, id FROM table.</li>
+              <li>ARRAY: <code>[one, two, three]</code></li>
+              <li>ARRAY: <code>[one, 1], [two, 2], [three, 3]</code></li></ul>
+        </div>
+        <label for="list_def">List definition <i class="fa fa-question-circle" title="Click for hint" data-cb-hint-for="list_def"></i></label>
+        <input type='text' id="list_def" name='list_def' class="cbl-input" placeholder='List definition' size="80"/>
+      </div>
+      <div class="crossbeams-field">
+        <label for="default_value">Default value</label>
+        <input type='text' id="default_value" name='default_value' class="cbl-input" placeholder='Default value' />
+      </div>
+      <div class="actions pure-controls">
+        <input type="submit" class="white bg-green br2 dim pa3 ba b--near-white" value="Add parameter" />
+      </div>
+    </div>
+  </div>
+</form>
