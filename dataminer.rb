@@ -31,6 +31,7 @@ require './lib/base_interactor'
 require './lib/base_service'
 require './lib/ui_rules'
 require './lib/library_versions'
+require './lib/dataminer_connections'
 Dir['./helpers/**/*.rb'].each { |f| require f }
 Dir['./lib/applets/*.rb'].each { |f| require f }
 
@@ -39,6 +40,8 @@ ENV['VERSION'] = File.read('VERSION')
 # ENV['REPORTS_LOCATION'] ||= File.expand_path('../../../roda_frame/reports', __FILE__)
 ENV['REPORTS_LOCATION'] ||= File.expand_path('../../label_designer/grid_definitions/dataminer_queries', __FILE__)
 ENV['GRID_QUERIES_LOCATION'] ||= File.expand_path('../../label_designer/grid_definitions/dataminer_queries', __FILE__)
+
+DM_CONNECTIONS = DataminerConnections.new
 
 class Dataminer < Roda
   include CommonHelpers

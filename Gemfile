@@ -19,12 +19,10 @@ gem 'tilt'
 gem 'yard'
 
 gem 'crossbeams-dataminer', git: 'https://github.com/NoSoft-SA/crossbeams-dataminer.git'
-# gem 'crossbeams-dataminer_interface', git: 'https://github.com/NoSoft-SA/crossbeams-dataminer_interface.git'
 gem 'crossbeams-layout', git: 'https://github.com/NoSoft-SA/crossbeams-layout.git'
 gem 'roda-data_grid', git: 'https://github.com/NoSoft-SA/roda-data_grid.git'
 
 # gem 'crossbeams-dataminer',           path: File.expand_path('../../crossbeams-dataminer', __FILE__)
-# gem 'crossbeams-dataminer_interface', path: File.expand_path('../../crossbeams-dataminer_interface', __FILE__)
 # gem 'crossbeams-layout',              path: File.expand_path('../../crossbeams-layout', __FILE__)
 # gem 'roda-data_grid',                 path: File.expand_path('../../roda-data_grid', __FILE__)
 

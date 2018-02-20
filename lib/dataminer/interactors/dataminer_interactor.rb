@@ -6,22 +6,25 @@ class DataminerInteractor < BaseInteractor
   end
 
   def report_parameters(id, params)
+    db, = repo.split_db_and_id(id)
     page = OpenStruct.new(id: id,
                           load_params: params[:back] && params[:back] == 'y',
                           report_action: "/dataminer/reports/report/#{id}/run",
                           excel_action: "/dataminer/reports/report/#{id}/xls")
     page.report = repo.lookup_report(id)
+    page.connection = repo.db_connection_for(db)
     page.crosstab_config = repo.lookup_crosstab(id)
     page
   end
 
   def run_report(id, params)
+    db, = repo.split_db_and_id(id)
     page = OpenStruct.new(id: id, col_defs: [])
     page.report = repo.lookup_report(id)
     page.crosstab_config = repo.lookup_crosstab(id)
     setup_report_with_parameters(page.report, params, page.crosstab_config)
-      # puts params.inspect
-      # {"limit"=>"", "offset"=>"", "crosstab"=>{"row_columns"=>["organization_code", "commodity_code", "fg_code_old"], "column_columns"=>"grade_code", "value_columns"=>"no_pallets"}, "btnSubmit"=>"Run report", "json_var"=>"[]"}
+    # puts params.inspect
+    # {"limit"=>"", "offset"=>"", "crosstab"=>{"row_columns"=>["organization_code", "commodity_code", "fg_code_old"], "column_columns"=>"grade_code", "value_columns"=>"no_pallets"}, "btnSubmit"=>"Run report", "json_var"=>"[]"}
     page.report.ordered_columns.each do |col|
       hs                  = { headerName: col.caption, field: col.name, hide: col.hide, headerTooltip: col.caption }
       hs[:width]          = col.width unless col.width.nil?
@@ -54,7 +57,7 @@ class DataminerInteractor < BaseInteractor
       page.col_defs << hs
     end
     # Use module for BigDecimal change? - register_extension...?
-    page.row_defs = repo.db_connection[page.report.runnable_sql].to_a.map do |m|
+    page.row_defs = repo.db_connection_for(db)[page.report.runnable_sql].to_a.map do |m|
       m.each_key { |k| m[k] = m[k].to_f if m[k].is_a?(BigDecimal) }
       m
     end
@@ -62,6 +65,7 @@ class DataminerInteractor < BaseInteractor
   end
 
   def create_spreadsheet(id, params)
+    db, = repo.split_db_and_id(id)
     page = OpenStruct.new(id: id)
     page.report = repo.lookup_report(id)
     page.crosstab_config = repo.lookup_crosstab(id)
@@ -90,7 +94,7 @@ class DataminerInteractor < BaseInteractor
         puts x_styles.inspect
         wb.add_worksheet do |sheet|
           sheet.add_row heads, style: tbl_header
-          repo.db_connection[page.report.runnable_sql].each do |row|
+          repo.db_connection_for(db)[page.report.runnable_sql].each do |row|
             sheet.add_row(fields.map { |f| v = row[f.to_sym]; v.is_a?(BigDecimal) ? v.to_f : v }, types: xls_types, style: x_styles)
           end
         end
@@ -100,9 +104,7 @@ class DataminerInteractor < BaseInteractor
   end
 
   def report_list_grid
-    # TODO: move this to an interactor...
-    # rpt_list = DmReportLister.new(settings.dm_reports_location).get_report_list(persist: true)
-    rpt_list = DmReportLister.new(ENV['REPORTS_LOCATION']).get_report_list(persist: true)
+    rpt_list = repo.list_all_reports
     link     = "'/dataminer/reports/report/'+data.id+'|run'"
 
     col_defs = [{ headerName: '',
@@ -113,6 +115,8 @@ class DataminerInteractor < BaseInteractor
                   valueGetter: link,
                   colId: 'edit_link',
                   cellRenderer: 'crossbeamsGridFormatters.hrefSimpleFormatter' },
+                # { headerName: 'Database', field: 'db', enableRowGroup: true },
+                { headerName: 'Database', field: 'db' },
                 { headerName: 'Report caption', field: 'caption', width: 300 },
                 { headerName: 'File name', field: 'file', width: 600 },
                 { headerName: 'Crosstab?', field: 'crosstab',
@@ -121,7 +125,7 @@ class DataminerInteractor < BaseInteractor
                   width:        100 }]
     {
       columnDefs: col_defs,
-      rowDefs:    rpt_list.sort_by { |rpt| rpt[:caption] }
+      rowDefs:    rpt_list.sort_by { |rpt| "#{rpt[:db]}#{rpt[:caption]}" }
     }.to_json
   end
 
