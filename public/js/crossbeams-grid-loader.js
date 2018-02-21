@@ -408,7 +408,7 @@ const crossbeamsGridEvents = {
       showCancelButton: true,
     }).then(() => {
       document.body.innerHTML += `<form id="dynForm" action="${url}"
-        method="post"><input name="_method" type="hidden" value="${+method}" /></form>`;
+        method="post"><input name="_csrf" type="hidden" value="${document.querySelector('meta[name="_csrf"]').content}" /><input name="_method" type="hidden" value="${+method}" /></form>`;
       document.getElementById('dynForm').submit();
     });
     // TODO: make call via AJAX & reload grid? Or http to server to figure it out?.....

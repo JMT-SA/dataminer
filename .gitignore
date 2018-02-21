@@ -1,2 +1,36 @@
-ag-enterprise-activation.js
 .sass-cache
+ag-enterprise-activation.js
+public/assets/*.*
+.dm_report_list.yml
+log/*
+hold/*
+*.zip
+
+# Used by dotenv library to load environment variables.
+.env.local
+
+## Documentation cache and generated files:
+/.yardoc/
+/_yardoc/
+/doc/
+/rdoc/
+
+## Environment normalization:
+/.bundle/
+/vendor/bundle
+/lib/bundler/man/
+
+## Rubymine
+.idea/
+.rake_tasks~
+
+## Vim
+tags
+.srclist
+.smartgf*
+
+# Assets plugin metadata file
+prestyle.css
+
+# Client-specific config.
+config/dataminer_connections.yml

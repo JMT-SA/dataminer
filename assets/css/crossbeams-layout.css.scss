@@ -165,7 +165,7 @@ option[value=""] {
 .container {
   flex: 1;
   margin: 0 1em;
-/*  margin-top: 90px; -- OFF for dataminer. */
+  margin-top: 90px;
 }
 
 header,
@@ -420,7 +420,7 @@ tr.roweven {
 
 .dialog-content {
   background-color: rgb(255, 255, 255);
-  z-index: 3;
+  z-index: 30;
   position: fixed;
   top: 50%;
   left: 50%;

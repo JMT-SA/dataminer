@@ -1,5 +1,6 @@
 AllCops:
   Exclude:
+    - db/**/*
     - test/**/*
     - tmp/**/*
 
@@ -15,15 +16,17 @@ FrozenStringLiteralComment:
 MethodLength:
   Enabled: false
 
-Style/ExtraSpacing:
+Layout/ExtraSpacing:
   Enabled: false
 
 Metrics/BlockLength:
   Exclude:
-    - '*.gemspec'
     - 'Rakefile'
     - '**/*.rake'
     - 'spec/**/*.rb'
 
 Layout/SpaceAroundOperators:
   AllowForAlignment: true
+
+Performance/UnfreezeString:
+  Enabled: false

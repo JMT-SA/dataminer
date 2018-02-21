@@ -1,0 +1,30 @@
+---
+:dataminer_definition: security_groups
+:actions:
+  - :url: /security/functional_areas/security_groups/$:id$
+    :text: view
+    :icon: fa-eye
+    :title: View
+    :popup: true
+  - :url: /security/functional_areas/security_groups/$:id$/edit
+    :text: edit
+    :icon: fa-edit
+    :title: Edit
+    :popup: true
+  - :url: /security/functional_areas/security_groups/$:id$
+    :text: delete
+    :is_delete: true
+    :popup: true
+    :icon: fa-remove
+    :hide_if_true: in_use
+  - :url: /security/functional_areas/security_groups/$:id$/permissions
+    :text: permissions
+    :icon: fa-list
+    :title: Assign Permissions
+    :popup: true
+:page_controls:
+  - :control_type: :link
+    :url: /security/functional_areas/security_groups/new
+    :text: New security group
+    :style: :button
+    :behaviour: :popup
