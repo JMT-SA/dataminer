@@ -1,14 +1,12 @@
+# frozen_string_literal: true
+
 class ReportRepo
   attr_reader :for_grid_queries
+
+  GRID_DEFS = 'grid-definitions'
+
   def initialize(for_grid_queries = false)
     @for_grid_queries = for_grid_queries
-  end
-
-  # Database connection.
-  #
-  # @return [Sequel::Database] the database connection.
-  def db_connection
-    DB # TODO: This may differ from report to report.
   end
 
   # Get the database connection from DM_CONNECTIONS for a specific key.
@@ -19,12 +17,16 @@ class ReportRepo
     DM_CONNECTIONS[key]
   end
 
-  # Get the report location path
+  # Get the report location path for admin purposes.
   #
-  # @param id [String] the report id.
-  # @return [Crossbeams::Dataminer::Report] the report.
-  def admin_report_path
-    for_grid_queries ? ENV['GRID_QUERIES_LOCATION'] : ENV['REPORTS_LOCATION']
+  # @param dbanem [String] the database key.
+  # @return [String] the report dir for the db key.
+  def admin_report_path(dbname)
+    if dbname == GRID_DEFS
+      ENV['GRID_QUERIES_LOCATION']
+    else
+      DM_CONNECTIONS.report_path(dbname)
+    end
   end
 
   class ReportLocation
@@ -50,7 +52,6 @@ class ReportRepo
   # @return [Crossbeams::Dataminer::Report] the report.
   def lookup_report(id, loc_for_admin = false)
     rep_loc = ReportLocation.new(id, loc_for_admin, for_grid_queries)
-    p rep_loc
     get_report_by_id(rep_loc)
   end
 
@@ -76,9 +77,7 @@ class ReportRepo
     # config_file       = File.join(rep_loc.path, '.dm_report_list.yml')
     # report_dictionary = YAML.load_file(config_file)
     report_dictionary = load_report_dictionary(rep_loc)
-    p report_dictionary
     this_report       = report_dictionary[rep_loc.combined]
-    p this_report
     return this_report[:file] if opts[:filename]
     if opts[:crosstab_hash]
       yml = YAML.load_file(this_report[:file])
@@ -96,15 +95,17 @@ class ReportRepo
     lookup_report(id, true)
   end
 
-  def list_all_reports # (options = { from_cache: false, persist: false })
+  def list_all_reports
     report_lookup = {}
-    DM_CONNECTIONS.databases.each do |key|
+    DM_CONNECTIONS.databases(without_grids: true).each do |key|
       report_lookup.merge!(get_reports_for(key, DM_CONNECTIONS.report_path(key)))
     end
     report_lookup.map { |id, lkp| { id: id, db: lkp[:db], file: lkp[:file], caption: lkp[:caption], crosstab: lkp[:crosstab] } }
-    # make_list(options[:from_cache])
-    # persist_list if options[:persist]
-    # report_lookup.map { |id, lkp| { id: id, file: lkp[:file], caption: lkp[:caption], crosstab: lkp[:crosstab] } }
+  end
+
+  def list_all_grid_reports
+    report_lookup = get_reports_for(GRID_DEFS, ENV['GRID_QUERIES_LOCATION'])
+    report_lookup.map { |id, lkp| { id: id, db: lkp[:db], file: lkp[:file], caption: lkp[:caption], crosstab: lkp[:crosstab] } }
   end
 
   def get_reports_for(key, path)

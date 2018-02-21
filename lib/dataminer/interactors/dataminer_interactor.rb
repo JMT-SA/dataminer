@@ -103,6 +103,50 @@ class DataminerInteractor < BaseInteractor
     page
   end
 
+  def admin_report_list_grid(for_grids: false)
+    rpt_list = if for_grids
+                 repo.list_all_grid_reports
+               else
+                 repo.list_all_reports
+               end
+    this_col = [
+      {
+        text: 'edit',
+        url: '/dataminer/admin/$col1$/edit',
+        col1: 'id',
+        icon: 'fa-edit'
+      },
+      {
+        text: 'delete',
+        url: '/dataminer/admin/$col1$',
+        col1: 'id',
+        prompt: 'Are you sure?',
+        method: 'delete',
+        icon: 'fa-remove',
+        popup: true
+      }
+    ]
+    col_defs = [{ headerName: '', pinned: 'left',
+                  width: 60,
+                  suppressMenu: true,   suppressSorting: true,   suppressMovable: true,
+                  suppressFilter: true, enableRowGroup: false,   enablePivot: false,
+                  enableValue: false,   suppressCsvExport: true, suppressToolPanel: true,
+                  valueGetter: this_col.to_json.to_s,
+                  colId: 'action_links',
+                  cellRenderer: 'crossbeamsGridFormatters.menuActionsRenderer' },
+                { headerName: 'Database', field: 'db' },
+                { headerName: 'Report caption', field: 'caption', width: 300 },
+                { headerName: 'File name', field: 'file', width: 600 },
+                { headerName: 'Crosstab?', field: 'crosstab',
+                  cellRenderer: 'crossbeamsGridFormatters.booleanFormatter',
+                  cellClass:    'grid-boolean-column',
+                  width:        100 }]
+    {
+      columnDefs: col_defs,
+      rowDefs:    rpt_list.sort_by { |rpt| "#{rpt[:db]}#{rpt[:caption]}" }
+    }.to_json
+  end
+
   def report_list_grid
     rpt_list = repo.list_all_reports
     link     = "'/dataminer/reports/report/'+data.id+'|run'"
@@ -129,19 +173,22 @@ class DataminerInteractor < BaseInteractor
     }.to_json
   end
 
-  def admin_list
-    page = OpenStruct.new
-    page.report_list = DmReportLister.new(repo.admin_report_path).get_report_list(from_cache: true)
-    page
+  def validate_new_report_params(params)
+    NewReportSchema.call(params)
   end
 
   def create_report(params)
+    res = validate_new_report_params(params)
+    return validation_failed_response(res) unless res.messages.empty?
+
     page = OpenStruct.new
     s = params[:filename].strip.downcase.tr(' ', '_').gsub(/_+/, '_').gsub(/[\/:*?"\\<>\|\r\n]/i, '-')
     page.filename = File.basename(s).reverse.sub(File.extname(s).reverse, '').reverse << '.yml'
     page.caption  = params[:caption]
     page.sql      = params[:sql]
+    page.database = params[:database]
     err = ''
+    repo = ReportRepo.new
 
     page.rpt = Crossbeams::Dataminer::Report.new(page.caption)
     begin
@@ -150,17 +197,16 @@ class DataminerInteractor < BaseInteractor
       err = e.message
     end
     # Check for existing file name...
-    if File.exist?(File.join(repo.admin_report_path, page.filename))
+    if File.exist?(File.join(repo.admin_report_path(page.database), page.filename))
       err = 'A file with this name already exists'
     end
     # Write file, rebuild index and go to edit...
 
     if err.empty?
       # run the report with limit 1 and set up datatypes etc.
-      DmCreator.new(repo.db_connection, page.rpt).modify_column_datatypes
-      yp = Crossbeams::Dataminer::YamlPersistor.new(File.join(repo.admin_report_path, page.filename))
+      DmCreator.new(repo.db_connection_for(page.database), page.rpt).modify_column_datatypes
+      yp = Crossbeams::Dataminer::YamlPersistor.new(File.join(repo.admin_report_path(page.database), page.filename))
       page.rpt.save(yp)
-      DmReportLister.new(repo.admin_report_path).get_report_list(persist: true) # Kludge to ensure list is rebuilt...
       success_response('Created report', page)
     else
       failed_response(err, page)
@@ -169,10 +215,10 @@ class DataminerInteractor < BaseInteractor
 
   def convert_report(params)
     yml = params[:yml]
-    hash = YAML.load(yml) ### --- could pass the params from the old yml & set them up too....
+    dbname = params[:database]
+    hash = YAML.load(yml)
     hash['query'] = params[:sql]
-    rpt = DmConverter.new(repo.admin_report_path).convert_hash(hash, params[:filename])
-    DmReportLister.new(repo.admin_report_path).get_report_list(persist: true) # Kludge to ensure list is rebuilt...
+    rpt = DmConverter.new(repo.admin_report_path(dbname)).convert_hash(hash, params[:filename])
     success_response('Converted to a new report', rpt)
   rescue StandardError => e
     failed_response(e.message)
@@ -181,7 +227,7 @@ class DataminerInteractor < BaseInteractor
   def edit_report(id)
     page = OpenStruct.new({ id: id, report: repo.lookup_report(id, true) })
 
-    page.filename = File.basename(DmReportLister.new(repo.admin_report_path).get_file_name_by_id(id))
+    page.filename = File.basename(repo.lookup_file_name(id, true))
 
     page.col_defs = [{ headerName: 'Column Name', field: 'name', pinned: 'left' },
                      { headerName: 'Seq', field: 'sequence_no', cellClass: 'grid-number-column', pinned: 'left', width: 80 }, # to be changed in group...
@@ -242,7 +288,7 @@ class DataminerInteractor < BaseInteractor
     # if new name <> old name, make sure new name has .yml, no spaces and lowercase....
     report = repo.lookup_report(id, true)
 
-    filename = DmReportLister.new(repo.admin_report_path).get_file_name_by_id(id)
+    filename = repo.lookup_file_name(id, true)
     # if File.basename(filename) != params[:filename]
     #   puts "new name: #{params[:filename]} for #{File.basename(filename)}"
     # else
@@ -258,10 +304,18 @@ class DataminerInteractor < BaseInteractor
     failed_response(e.message)
   end
 
+  def delete_report(id)
+    filename = repo.lookup_file_name(id, true)
+    File.delete(filename)
+    success_response('Report has been deleted')
+  rescue StandardError => e
+    failed_response(e.message)
+  end
+
   def save_report_sql(id, params)
     report = repo.lookup_admin_report(id)
     report.sql = params[:report][:sql]
-    filename = DmReportLister.new(repo.admin_report_path).get_file_name_by_id(id)
+    filename = repo.lookup_file_name(id, true)
     yp       = Crossbeams::Dataminer::YamlPersistor.new(filename)
     report.save(yp)
     success_response('SQL saved', report)
@@ -275,7 +329,7 @@ class DataminerInteractor < BaseInteractor
     col_order.each_with_index do |col, index|
       report.columns[col].sequence_no = index + 1
     end
-    filename = DmReportLister.new(repo.admin_report_path).get_file_name_by_id(id)
+    filename = repo.lookup_file_name(id, true)
     yp       = Crossbeams::Dataminer::YamlPersistor.new(filename)
     report.save(yp)
     success_response('Columns reordered', report)
@@ -315,7 +369,7 @@ class DataminerInteractor < BaseInteractor
     if value.nil? && attrib == 'caption' # Cannot be nil...
       res = { status: 'error', message: "Caption for #{params[:key_val]} cannot be blank" }
     else
-      filename = DmReportLister.new(repo.admin_report_path).get_file_name_by_id(id)
+      filename = repo.lookup_file_name(id, true)
       yp = Crossbeams::Dataminer::YamlPersistor.new(filename)
       report.save(yp)
       res = if send_changes
@@ -349,7 +403,7 @@ class DataminerInteractor < BaseInteractor
     param = Crossbeams::Dataminer::QueryParameterDefinition.new(col_name, opts)
     report.add_parameter_definition(param)
 
-    filename = DmReportLister.new(repo.admin_report_path).get_file_name_by_id(id)
+    filename = repo.lookup_file_name(id, true)
     yp = Crossbeams::Dataminer::YamlPersistor.new(filename)
     report.save(yp)
 
@@ -375,7 +429,7 @@ class DataminerInteractor < BaseInteractor
   def delete_parameter(id, param_id)
     report = repo.lookup_admin_report(id)
     report.query_parameter_definitions.delete_if { |p| p.column == param_id }
-    filename = DmReportLister.new(repo.admin_report_path).get_file_name_by_id(id)
+    filename = repo.lookup_file_name(id, true)
     yp = Crossbeams::Dataminer::YamlPersistor.new(filename)
     report.save(yp)
     success_response('Parameter has been deleted', report)

@@ -120,14 +120,23 @@ module CommonHelpers
     { flash: { notice: message } }.to_json
   end
 
+  def show_json_error(message)
+    { flash: { error: message } }.to_json
+  end
+
   def update_grid_row(id, changes:, notice: nil)
     res = { updateGridInPlace: { id: id.to_i, changes: changes } }
     res[:flash] = { notice: notice } if notice
     res.to_json
   end
 
-  def delete_grid_row(id, notice: nil)
-    res = { removeGridRowInPlace: { id: id.to_i } }
+  def delete_grid_row(id_in, notice: nil)
+    id = if id_in.is_a?(String)
+           id_in.scan(/\D/).empty? ? id_in.to_i : id_in
+         else
+           id_in
+         end
+    res = { removeGridRowInPlace: { id: id } }
     res[:flash] = { notice: notice } if notice
     res.to_json
   end
@@ -139,7 +148,7 @@ module CommonHelpers
     res.to_json
   end
 
-  def show_json_error(err)
+  def show_json_exception(err)
     { exception: err.class.name, flash: { error: "An error occurred: #{err.message}" } }.to_json
   end
 

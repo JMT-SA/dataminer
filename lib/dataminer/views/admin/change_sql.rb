@@ -15,8 +15,7 @@ module DM
         rules   = { fields: { id: { renderer: :hidden },
                               sql: { renderer: :textarea,
                                      cols: 60,
-                                     rows: 25,
-                                     hint: '<p>Some arbitrary hint about SQL<br><strong>NB</strong> Do not ignore this.</p>'} },
+                                     rows: 25 } },
                     name: 'report' }
 
         layout = Crossbeams::Layout::Page.build(rules) do |page|
