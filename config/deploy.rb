@@ -73,6 +73,31 @@ task :precompile do
 end
 
 namespace :devops do
+  desc 'Add a user'
+  task :add_user do
+    require 'bcrypt'
+
+    puts("\n--------------------------------------------------------------------------------------------------")
+    puts('Create a new user: (login and passwd values: No spaces, all lowercase; user name can have spaces.)')
+    puts("--------------------------------------------------------------------------------------------------\n\n")
+    ask(:login_name, nil)
+    ask(:password, nil, echo: false)
+    ask(:user_name, nil)
+    login_name = fetch(:login_name).downcase
+    pwd_hash = BCrypt::Password.create(fetch(:password))
+    user_name = fetch(:user_name)
+
+    on primary :db do
+      within release_path do
+        with rack_env: fetch(:rack_env) do
+          execute :rake, "db:add_user['#{login_name}','#{pwd_hash}','#{user_name}']"
+        end
+      end
+    end
+  end
+end
+
+namespace :devops do
   desc 'Copy initial files'
   task :copy_initial do
     on roles(:app) do |_|
@@ -84,7 +109,7 @@ end
 
 namespace :deploy do
   after :updated, :migrate_and_precompile do
-    invoke 'migrate'
+    invoke 'migrate' # -- COMMENT OUT WHEN DB IS SHARED...
     invoke 'precompile'
   end
 end

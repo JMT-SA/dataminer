@@ -33,6 +33,16 @@ namespace :assets do
 end
 
 namespace :db do
+  desc 'Add a new user'
+  task :add_user, %i[login_name password user_name] => [:dotenv] do |_, args|
+    raise "\nLogin name cannot include spaces.\n\n" if args[:login_name].include?(' ')
+    require 'sequel'
+    db_name = "#{ENV.fetch('DATABASE_URL')}#{'_test' if ENV.fetch('RACK_ENV') == 'test'}"
+    db = Sequel.connect(db_name)
+    id = db[:users].insert(login_name: args[:login_name], user_name: args[:user_name], password_hash: args[:password])
+    puts "Created user with id #{id}"
+  end
+
   desc 'Prints current schema version'
   task version: :dotenv do
     require 'sequel'
