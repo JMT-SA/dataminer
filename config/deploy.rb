@@ -32,7 +32,7 @@ set :rack_env, :production # SET THESE UP IN deploy files (hm6, hm7, nosoft, sch
 
 # Default value for :linked_files is []
 # append :linked_files, 'config/database.yml', 'config/secrets.yml'
-append :linked_files, 'public/js/ag-enterprise-activation.js', 'config/dataminer_connections.yml'
+append :linked_files, 'public/js/ag-enterprise-activation.js', '.env.local', 'config/dataminer_connections.yml'
 
 # Default value for linked_dirs is []
 # append :linked_dirs, 'log', 'tmp/pids', 'tmp/cache', 'tmp/sockets', 'public/system'
