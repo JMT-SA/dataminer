@@ -10,6 +10,13 @@ and this project adheres roughly to [Semantic Versioning](http://semver.org/).
 ### Changed
 ### Fixed
 
+## [0.1.2] - 2018-03-03
+### Added
+- Capistrano deploy.
+### Changed
+- Menu system linked to web application.
+- Rake tasks respect dotenv local override for database url.
+
 ## [0.1.1] - 2018-02-21
 ### Changed
 - Reports can be run against different databases.
