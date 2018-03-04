@@ -29,7 +29,7 @@ class ProgramInteractor < BaseInteractor
     @id = id
     res = validate_program_params(params)
     return validation_failed_response(res) unless res.messages.empty?
-    repo.update(:programs, id, res.to_h)
+    repo.update_program(id, res.to_h)
     success_response("Updated program #{program.program_name}",
                      program(false))
   end
