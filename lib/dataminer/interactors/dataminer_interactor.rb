@@ -22,7 +22,7 @@ class DataminerInteractor < BaseInteractor
     page = OpenStruct.new(id: id, col_defs: [])
     page.report = repo.lookup_report(id)
     page.crosstab_config = repo.lookup_crosstab(id)
-    setup_report_with_parameters(page.report, params, page.crosstab_config)
+    setup_report_with_parameters(page.report, params, page.crosstab_config, db)
     # puts params.inspect
     # {"limit"=>"", "offset"=>"", "crosstab"=>{"row_columns"=>["organization_code", "commodity_code", "fg_code_old"], "column_columns"=>"grade_code", "value_columns"=>"no_pallets"}, "btnSubmit"=>"Run report", "json_var"=>"[]"}
     page.report.ordered_columns.each do |col|
@@ -69,7 +69,7 @@ class DataminerInteractor < BaseInteractor
     page = OpenStruct.new(id: id)
     page.report = repo.lookup_report(id)
     page.crosstab_config = repo.lookup_crosstab(id)
-    setup_report_with_parameters(page.report, params, page.crosstab_config)
+    setup_report_with_parameters(page.report, params, page.crosstab_config, db)
     xls_possible_types = { string: :string, integer: :integer, date: :string,
                            datetime: :time, time: :time, boolean: :boolean, number: :float }
     heads = []
@@ -443,7 +443,7 @@ class DataminerInteractor < BaseInteractor
   # @param params [Hash] the request parameters.
   # @param crosstab_hash [Hash] the crosstab config (if applicable).
   # @return [Crossbeams::Dataminer::Report] the modified report.
-  def setup_report_with_parameters(rpt, params, crosstab_hash = {})
+  def setup_report_with_parameters(rpt, params, crosstab_hash = {}, db)
     # puts params[:json_var].inspect
     # {"col"=>"users.department_id", "op"=>"=", "opText"=>"is", "val"=>"17", "text"=>"Finance", "caption"=>"Department"}
     input_parameters = ::JSON.parse(params[:json_var])
@@ -481,7 +481,7 @@ class DataminerInteractor < BaseInteractor
     begin
       rpt.apply_params(parms)
 
-      CrosstabApplier.new(repo.db_connection, rpt, params, crosstab_hash).convert_report if params[:crosstab]
+      CrosstabApplier.new(repo.db_connection_for(db), rpt, params, crosstab_hash).convert_report if params[:crosstab]
       rpt
       # rescue StandardError => e
       #   return "ERROR: #{e.message}"
