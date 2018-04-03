@@ -85,6 +85,8 @@ class Dataminer < Roda
     end
 
     r.on :id do |id|
+      id = id.gsub('%20', ' ')
+
       r.on 'edit' do
         @page = interactor.edit_report(id)
         view('dataminer/admin/edit')
@@ -130,7 +132,7 @@ class Dataminer < Roda
       end
       r.on 'save_reordered_columns' do
         r.patch do
-          res = interactor.save_report_column_order(id, params)
+          res = interactor.save_report_column_order(id, params[:report])
           if res.success
             flash[:notice] = "Report's column order has been changed."
           else

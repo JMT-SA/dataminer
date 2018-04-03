@@ -1,7 +1,7 @@
 module MenuHelpers
   def menu_items(webapp)
     return nil if current_user.nil?
-    repo      = ProgramFunctionRepo.new
+    repo      = SecurityApp::MenuRepo.new
     rows      = repo.menu_for_user(current_user, webapp)
     build_menu(rows).to_json
   end
@@ -18,9 +18,13 @@ module MenuHelpers
     rows.each do |row|
       progs[row[:functional_area_id]] << { name: row[:program_name], id: row[:program_id] }
       progfuncs[row[:program_id]] << { name: row[:program_function_name], group_name: row[:group_name],
-                                       url: row[:url], id: row[:id], func_id: row[:functional_area_id],
+                                       url: progfunc_url(row), id: row[:id], func_id: row[:functional_area_id],
                                        prog_id: row[:program_id] }
     end
+  end
+
+  def progfunc_url(row)
+    row[:show_in_iframe] ? "/iframe/#{row[:id]}" : row[:url]
   end
 
   def build_menu(rows)

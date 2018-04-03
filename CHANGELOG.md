@@ -9,6 +9,9 @@ and this project adheres roughly to [Semantic Versioning](http://semver.org/).
 ### Added
 ### Changed
 - User login checks are now case-insensitive.
+- Menu items can be opened in an iFrame.
+- Runnable report sql (with parameters filled-in) can be sent to a different rendererer URL to be displayed in an iFrame.
+- Changed to AG-Grid 17 and the new "balham" theme.
 ### Fixed
 
 ## [0.1.2] - 2018-03-03

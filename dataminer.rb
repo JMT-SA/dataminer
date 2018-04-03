@@ -10,8 +10,9 @@ require 'crossbeams/dataminer'
 require 'crossbeams/layout'
 require 'roda/data_grid'
 require 'yaml'
+require 'pstore'
 require 'base64'
-require 'zip'
+require 'dry/inflector'
 require 'dry-struct'
 require 'dry-validation'
 require 'net/http'
@@ -29,6 +30,7 @@ require './lib/crossbeams_responses'
 require './lib/repo_base'
 require './lib/base_interactor'
 require './lib/base_service'
+require './lib/local_store' # Will only work for processes running from one dir.
 require './lib/ui_rules'
 require './lib/library_versions'
 require './lib/dataminer_connections'
@@ -38,7 +40,7 @@ Dir['./lib/applets/*.rb'].each { |f| require f }
 ENV['ROOT'] = File.dirname(__FILE__) # Could use Roda.expand_path('.') inside Roda app.
 ENV['VERSION'] = File.read('VERSION')
 # ENV['REPORTS_LOCATION'] ||= File.expand_path('../../../roda_frame/reports', __FILE__)
-ENV['REPORTS_LOCATION'] ||= File.expand_path('../../label_designer/grid_definitions/dataminer_queries', __FILE__)
+# ENV['REPORTS_LOCATION'] ||= File.expand_path('../../label_designer/grid_definitions/dataminer_queries', __FILE__)
 ENV['GRID_QUERIES_LOCATION'] ||= File.expand_path('../../label_designer/grid_definitions/dataminer_queries', __FILE__)
 
 DM_CONNECTIONS = DataminerConnections.new
@@ -48,8 +50,11 @@ class Dataminer < Roda
   include MenuHelpers
   include DataminerHelpers
 
+  # Store the name of this class for use in scaffold generating.
+  ENV['RODA_KLASS'] = to_s
+
   use Rack::Session::Cookie, secret: 'some_not_so_nice_long_random_string_DSKJH4378EYR7EGKUFH', key: '_dataminer_session'
-  use Rack::MethodOverride # USe with all_verbs plugin to allow "r.delete" etc.
+  use Rack::MethodOverride # Use with all_verbs plugin to allow 'r.delete' etc.
 
   plugin :data_grid, path: File.dirname(__FILE__),
                      list_url: '/list/%s/grid',
@@ -76,7 +81,7 @@ class Dataminer < Roda
   #                                          db_connection: DB
   plugin :symbolized_params    # - automatically converts all keys of params to symbols.
   plugin :flash
-  plugin :csrf, raise: true # , :skip => ['POST:/report_error'] # FIXME: Remove the +raise+ param when going live!
+  plugin :csrf, raise: true, skip_if: ->(_) { ENV['RACK_ENV'] == 'test' } # , :skip => ['POST:/report_error'] # FIXME: Remove the +raise+ param when going live!
   plugin :json_parser
   plugin :rodauth do
     db DB
@@ -114,6 +119,12 @@ class Dataminer < Roda
 
     r.multi_route
 
+    r.on 'iframe', Integer do |id|
+      repo = SecurityApp::MenuRepo.new
+      pf = repo.find_program_function(id)
+      view(inline: %(<iframe src="#{pf.url}" title="#{pf.program_function_name}" width="100%" style="height:80vh"></iframe>))
+    end
+
     r.is 'logout' do
       rodauth.logout
       flash[:notice] = 'Logged out'
@@ -139,6 +150,12 @@ class Dataminer < Roda
       view('crossbeams_layout_page')
     end
 
+    r.is 'not_found' do
+      response.status = 404
+      view(inline: '<div class="crossbeams-error-note"><strong>Error</strong><br>The requested resource was not found.</div>')
+    end
+
+    # Generic grid lists.
     r.on 'list' do
       r.on :id do |id|
         r.is do
@@ -167,9 +184,9 @@ class Dataminer < Roda
           response['Content-Type'] = 'application/json'
           begin
             if params && !params.empty?
-              render_data_grid_rows(id, nil, params)
+              render_data_grid_rows(id, ->(program, permission) { auth_blocked?(program, permission) }, params)
             else
-              render_data_grid_rows(id)
+              render_data_grid_rows(id, ->(program, permission) { auth_blocked?(program, permission) })
             end
           rescue StandardError => e
             show_json_exception(e)
@@ -208,28 +225,28 @@ class Dataminer < Roda
 
         r.on 'grid' do
           response['Content-Type'] = 'application/json'
-          render_search_grid_rows(id, params)
+          render_search_grid_rows(id, params, ->(program, permission) { auth_blocked?(program, permission) })
         end
 
         r.on 'xls' do
-          begin
-            caption, xls = render_excel_rows(id, params)
-            response.headers['content_type'] = 'application/vnd.ms-excel'
-            response.headers['Content-Disposition'] = "attachment; filename=\"#{caption.strip.gsub(%r{[/:*?"\\<>\|\r\n]}i, '-') + '.xls'}\""
-            response.write(xls) # NOTE: could this use streaming to start downloading quicker?
-          rescue Sequel::DatabaseError => e
-            view(inline: <<-HTML)
-            <p style='color:red;'>There is a problem with the SQL definition of this report:</p>
-            <p>Report: <em>#{caption}</em></p>The error message is:
-            <pre>#{e.message}</pre>
-            <button class="pure-button" onclick="crossbeamsUtils.toggleVisibility('sql_code', this);return false">
-              <i class="fa fa-info"></i> Toggle SQL
-            </button>
-            <pre id="sql_code" style="display:none;"><%= sql_to_highlight(@rpt.runnable_sql) %></pre>
-            HTML
-          end
+          caption, xls = render_excel_rows(id, params)
+          response.headers['content_type'] = 'application/vnd.ms-excel'
+          response.headers['Content-Disposition'] = "attachment; filename=\"#{caption.strip.gsub(%r{[/:*?"\\<>\|\r\n]}i, '-') + '.xls'}\""
+          response.write(xls) # NOTE: could this use streaming to start downloading quicker?
+        rescue Sequel::DatabaseError => e
+          view(inline: <<-HTML)
+          <p style='color:red;'>There is a problem with the SQL definition of this report:</p>
+          <p>Report: <em>#{caption}</em></p>The error message is:
+          <pre>#{e.message}</pre>
+          <button class="pure-button" onclick="crossbeamsUtils.toggleVisibility('sql_code', this);return false">
+            <i class="fa fa-info"></i> Toggle SQL
+          </button>
+          <pre id="sql_code" style="display:none;"><%= sql_to_highlight(@rpt.runnable_sql) %></pre>
+          HTML
         end
       end
     end
   end
 end
+# rubocop:enable Metrics/ClassLength
+# rubocop:enable Metrics/BlockLength

@@ -8,7 +8,7 @@ Rake::TestTask.new(:test) do |t|
   t.libs << 'test'
   t.libs << 'lib'
   t.warning = false
-  t.test_files = FileList['test/**/*_test.rb']
+  t.test_files = FileList['test/**/test_*.rb', 'lib/**/test_*.rb']
 end
 
 YARD::Rake::YardocTask.new(:doc) do |t|
@@ -88,7 +88,11 @@ namespace :db do
       Sequel::Migrator.run(db, 'db/migrations', target: args[:version].to_i)
     else
       puts 'Migrating to latest'
-      Sequel::Migrator.run(db, 'db/migrations')
+      if ENV['MISS']
+        Sequel::Migrator.run(db, 'db/migrations', allow_missing_migration_files: true)
+      else
+        Sequel::Migrator.run(db, 'db/migrations')
+      end
     end
   end
 
