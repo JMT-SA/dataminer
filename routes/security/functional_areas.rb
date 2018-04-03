@@ -8,7 +8,7 @@ class Dataminer < Roda
     # FUNCTIONAL AREAS
     # --------------------------------------------------------------------------
     r.on 'functional_areas', Integer do |id|
-      interactor = FunctionalAreaInteractor.new(current_user, {}, {}, {})
+      interactor = SecurityApp::FunctionalAreaInteractor.new(current_user, {}, {}, {})
 
       # Check for notfound:
       r.on !interactor.exists?(:functional_areas, id) do
@@ -51,7 +51,7 @@ class Dataminer < Roda
     end
 
     r.on 'functional_areas' do
-      interactor = FunctionalAreaInteractor.new(current_user, {}, {}, {})
+      interactor = SecurityApp::FunctionalAreaInteractor.new(current_user, {}, {}, {})
       r.on 'new' do    # NEW
         if authorised?('menu', 'new')
           show_partial_or_page(fetch?(r)) { Security::FunctionalAreas::FunctionalArea::New.call(remote: fetch?(r)) }
@@ -89,7 +89,7 @@ class Dataminer < Roda
     # PROGRAMS
     # --------------------------------------------------------------------------
     r.on 'programs', Integer do |id|
-      interactor = ProgramInteractor.new(current_user, {}, {}, {})
+      interactor = SecurityApp::ProgramInteractor.new(current_user, {}, {}, {})
 
       r.on 'new' do    # NEW
         if authorised?('menu', 'new')
@@ -151,7 +151,7 @@ class Dataminer < Roda
     end
 
     r.on 'programs' do
-      interactor = ProgramInteractor.new(current_user, {}, {}, {})
+      interactor = SecurityApp::ProgramInteractor.new(current_user, {}, {}, {})
 
       r.on 'link_users', Integer do |id|
         r.post do
@@ -197,7 +197,7 @@ class Dataminer < Roda
     # PROGRAM FUNCTIONS
     # --------------------------------------------------------------------------
     r.on 'program_functions', Integer do |id|
-      interactor = ProgramFunctionInteractor.new(current_user, {}, {}, {})
+      interactor = SecurityApp::ProgramFunctionInteractor.new(current_user, {}, {}, {})
 
       r.on 'new' do    # NEW
         if authorised?('menu', 'new')
@@ -248,7 +248,7 @@ class Dataminer < Roda
     end
 
     r.on 'program_functions' do
-      interactor = ProgramFunctionInteractor.new(current_user, {}, {}, {})
+      interactor = SecurityApp::ProgramFunctionInteractor.new(current_user, {}, {}, {})
 
       r.on 'link_users', Integer do |id|
         r.post do
@@ -290,7 +290,7 @@ class Dataminer < Roda
     # SECURITY GROUPS
     # --------------------------------------------------------------------------
     r.on 'security_groups', Integer do |id|
-      interactor = SecurityGroupInteractor.new(current_user, {}, {}, {})
+      interactor = SecurityApp::SecurityGroupInteractor.new(current_user, {}, {}, {})
 
       # Check for notfound:
       r.on !interactor.exists?(:security_groups, id) do
@@ -348,7 +348,7 @@ class Dataminer < Roda
       end
     end
     r.on 'security_groups' do
-      interactor = SecurityGroupInteractor.new(current_user, {}, {}, {})
+      interactor = SecurityApp::SecurityGroupInteractor.new(current_user, {}, {}, {})
       r.on 'new' do    # NEW
         if authorised?('menu', 'new')
           show_partial_or_page(fetch?(r)) { Security::FunctionalAreas::SecurityGroup::New.call(remote: fetch?(r)) }
@@ -386,7 +386,7 @@ class Dataminer < Roda
     # SECURITY PERMISSIONS
     # --------------------------------------------------------------------------
     r.on 'security_permissions', Integer do |id|
-      interactor = SecurityPermissionInteractor.new(current_user, {}, {}, {})
+      interactor = SecurityApp::SecurityPermissionInteractor.new(current_user, {}, {}, {})
 
       # Check for notfound:
       r.on !interactor.exists?(:security_permissions, id) do
@@ -429,7 +429,7 @@ class Dataminer < Roda
     end
 
     r.on 'security_permissions' do
-      interactor = SecurityPermissionInteractor.new(current_user, {}, {}, {})
+      interactor = SecurityApp::SecurityPermissionInteractor.new(current_user, {}, {}, {})
       r.on 'new' do    # NEW
         if authorised?('menu', 'new')
           show_partial_or_page(fetch?(r)) { Security::FunctionalAreas::SecurityPermission::New.call(remote: fetch?(r)) }
@@ -465,3 +465,5 @@ class Dataminer < Roda
     end
   end
 end
+# rubocop:enable Metrics/ClassLength
+# rubocop:enable Metrics/BlockLength

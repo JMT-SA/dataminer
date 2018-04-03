@@ -196,6 +196,31 @@ const crossbeamsUtils = {
   },
 
   /**
+   * Take selected options from a multiselect and return them in a sequence
+   * that matches an array of selected ids.
+   * @param {node} sel - a select DOM node;
+   * @param {array} sortedIds - a list of ids in a particular sequence.
+   * @returns {array} out - the sorted options.
+   */
+  getSelectedIdsInStep: function getSelectedIdsInStep(sel, sortedIds) {
+    const usedIds = [];
+    const out = [];
+    sortedIds.forEach((id) => {
+      const found = _.find(sel.selectedOptions, ['value', id]);
+      if (found) {
+        out.push(found);
+        usedIds.push(id);
+      }
+    });
+    Array.from(sel.selectedOptions).forEach((opt) => {
+      if (usedIds.indexOf(opt.value) === -1) {
+        out.push(opt);
+      }
+    });
+    return out;
+  },
+
+  /**
    * Applies the multi skin to multiselect dropdowns.
    * @returns {void}
    */
@@ -203,6 +228,29 @@ const crossbeamsUtils = {
     const sels = document.querySelectorAll('[data-multi]');
     sels.forEach((sel) => {
       multi(sel); // multi select with two panes...
+
+      // observeSelected behaviour - get rules from select element and
+      // add selected options to a sortable element.
+      if (sel.dataset && sel.dataset.observeSelected) {
+        sel.addEventListener('change', () => {
+          const s = sel.dataset.observeSelected;
+          const j = JSON.parse(s);
+          const targets = j.map(el => el.sortable);
+
+          targets.forEach((id) => {
+            const list = document.getElementById(id);
+            const sortedIds = document.getElementById(id.replace('-sortable-items', '-sorted_ids'));
+            let items = '';
+            const itemIds = [];
+            crossbeamsUtils.getSelectedIdsInStep(sel, sortedIds.value.split(',')).forEach((opt) => {
+              items += `<li id="si_${opt.value}" class="crossbeams-draggable"><span class="crossbeams-drag-handle">&nbsp;&nbsp;&nbsp;&nbsp;</span>${opt.text}</li>`;
+              itemIds.push(opt.value);
+            });
+            list.innerHTML = items;
+            sortedIds.value = itemIds.join(',');
+          });
+        });
+      }
     });
   },
 
@@ -239,6 +287,40 @@ const crossbeamsUtils = {
       });
     });
     select.setPlaceholder();
+  },
+
+  /**
+   * Replace the options of a Multi select.
+   * @param {object} action - the action object returned from the backend.
+   * @returns {void}
+   */
+  replaceMultiOptions: function replaceMultiOptions(action) {
+    const elem = document.getElementById(action.replace_multi_options.id);
+    if (elem === null) {
+      this.alert({
+        prompt: `There is no DOM element with id: "${action.replace_multi_options.id}"`,
+        title: 'Dropdown-change: id missmatch',
+        type: 'error',
+      });
+      return;
+    }
+    let nVal = '';
+    let nText = '';
+    while (elem.options.length) elem.remove(0);
+    action.replace_multi_options.options.forEach((item) => {
+      if (item.constructor === Array) {
+        nVal = (item[1] || item[0]);
+        nText = item[0];
+      } else {
+        nVal = item;
+        nText = item;
+      }
+      const option = document.createElement('option');
+      option.value = nVal;
+      option.text = nText;
+      elem.appendChild(option);
+    });
+    elem.dispatchEvent(new Event('change'));
   },
   /**
    * Replace the value of an Input element.
@@ -282,6 +364,9 @@ const crossbeamsUtils = {
         data.actions.forEach((action) => {
           if (action.replace_options) {
             this.replaceSelectrOptions(action);
+          }
+          if (action.replace_multi_options) {
+            this.replaceMultiOptions(action);
           }
           if (action.replace_input_value) {
             this.replaceInputValue(action);
@@ -369,7 +454,7 @@ const crossbeamsUtils = {
         });
       }
 
-      // observeChange behaviour - get reules from select element and
+      // observeChange behaviour - get rules from select element and
       // call the supplied url(s).
       if (sel.dataset && sel.dataset.observeChange) {
         holdSel.on('selectr.change', (option) => {

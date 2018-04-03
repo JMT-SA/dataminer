@@ -70,8 +70,8 @@ module CommonHelpers
   end
 
   # Is this a fetch request?
-  def fetch?(r)
-    r.has_header?('HTTP_X_CUSTOM_REQUEST_TYPE')
+  def fetch?(route)
+    route.has_header?('HTTP_X_CUSTOM_REQUEST_TYPE')
   end
 
   def current_user
@@ -81,7 +81,7 @@ module CommonHelpers
 
   def authorised?(programs, sought_permission)
     return false unless current_user
-    prog_repo = ProgramRepo.new
+    prog_repo = SecurityApp::MenuRepo.new
     prog_repo.authorise?(current_user, Array(programs), sought_permission)
   end
 
@@ -90,6 +90,7 @@ module CommonHelpers
   end
 
   def show_unauthorised
+    response.status = 404
     view(inline: "<div class='crossbeams-warning-note'><strong>Warning</strong><br>You do not have permission for this task</div>")
   end
 
@@ -100,8 +101,8 @@ module CommonHelpers
     # current_user # && current_user[:department_name] == 'IT'
   end
 
-  def redirect_to_last_grid(r)
-    r.redirect session[:last_grid_url]
+  def redirect_to_last_grid(route)
+    route.redirect session[:last_grid_url]
   end
 
   def redirect_via_json_to_last_grid
@@ -157,15 +158,39 @@ module CommonHelpers
     { exception: err.class.name, flash: { error: "An error occurred: #{err.message}" } }.to_json
   end
 
-  # TODO: same for multiple selects.
   def json_replace_select_options(dom_id, options_array, message = nil)
-    res = { actions: [{ replace_options: { id: dom_id, options: options_array } }] }
-    res[:flash] = { notice: message } unless message.nil?
-    res.to_json
+    json_actions(OpenStruct.new(type: :replace_select_options, dom_id: dom_id, options_array: options_array), message)
+  end
+
+  def json_replace_multi_options(dom_id, options_array, message = nil)
+    json_actions(OpenStruct.new(type: :replace_multi_options, dom_id: dom_id, options_array: options_array), message)
   end
 
   def json_replace_input_value(dom_id, value, message = nil)
-    res = { actions: [{ replace_input_value: { id: dom_id, value: value } }] }
+    json_actions(OpenStruct.new(type: :replace_input_value, dom_id: dom_id, value: value), message)
+  end
+
+  # This could be built in a class and receive send messages....
+  def build_json_action(action)
+    return action_replace_input_value(action) if action.type == :replace_input_value
+    return action_replace_select_options(action) if action.type == :replace_select_options
+    return action_replace_multi_options(action) if action.type == :replace_multi_options
+  end
+
+  def action_replace_select_options(action)
+    { replace_options: { id: action.dom_id, options: action.options_array } }
+  end
+
+  def action_replace_multi_options(action)
+    { replace_multi_options: { id: action.dom_id, options: action.options_array } }
+  end
+
+  def action_replace_input_value(action)
+    { replace_input_value: { id: action.dom_id, value: action.value } }
+  end
+
+  def json_actions(actions, message = nil)
+    res = { actions: Array(actions).map { |a| build_json_action(a) } }
     res[:flash] = { notice: message } unless message.nil?
     res.to_json
   end
@@ -175,11 +200,11 @@ module CommonHelpers
     view(inline: "<div class='crossbeams-error-note'><strong>Error</strong><br>#{err}</div>")
   end
 
-  def handle_not_found(r)
+  def handle_not_found(route)
     if request.xhr?
       "<div class='crossbeams-error-note'><strong>Error</strong><br>The requested resource was not found.</div>"
     else
-      r.redirect '/not_found'
+      route.redirect '/not_found'
     end
   end
 
@@ -192,8 +217,18 @@ module CommonHelpers
     "<div class='crossbeams-warning-note'><strong>Warning</strong><br>You do not have permission for this task</div>"
   end
 
-  def dialog_error(e, state = nil)
+  def dialog_error(err, state = nil)
     response.status = 500
-    "<div class='crossbeams-error-note'><strong>#{state || 'ERROR'}</strong><br>#{e}</div>"
+    "<div class='crossbeams-error-note'><strong>#{state || 'ERROR'}</strong><br>#{err}</div>"
+  end
+
+  def stash_page(value)
+    store = LocalStore.new(current_user.id)
+    store.write(:stashed_page, value)
+  end
+
+  def stashed_page
+    store = LocalStore.new(current_user.id)
+    store.read_once(:stashed_page)
   end
 end
