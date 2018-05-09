@@ -7,7 +7,7 @@ class TestBaseInteractor < Minitest::Test
   end
 
   def test_exists?
-    RepoBase.any_instance.expects(:exists?).returns(true)
+    BaseRepo.any_instance.expects(:exists?).returns(true)
     interactor.exists?(:users, 1)
   end
 
@@ -16,6 +16,16 @@ class TestBaseInteractor < Minitest::Test
     x = interactor.validation_failed_response(results)
     expected = OpenStruct.new( success: false,
                                instance: {},
+                               errors: results.messages,
+                               message: 'Validation error')
+    assert_equal expected, x
+  end
+
+  def test_validation_failed_response_with_instance
+    results = OpenStruct.new(messages: { roles: ['You did not choose a role'] }, id: 1, name: 'fred')
+    x = interactor.validation_failed_response(results)
+    expected = OpenStruct.new( success: false,
+                               instance: {id: 1, name: 'fred'},
                                errors: results.messages,
                                message: 'Validation error')
     assert_equal expected, x

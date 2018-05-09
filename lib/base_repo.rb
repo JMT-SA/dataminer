@@ -1,21 +1,23 @@
-class RepoBase
+class BaseRepo
   include Crossbeams::Responses
 
   # Return all rows from a table as instances of the given wrapper.
   #
   # @param table_name [Symbol] the db table name.
   # @param wrapper [Class] the class of the object to return.
+  # @param args [Hash] the optional where-clause conditions.
   # @return [Array] the table rows.
-  def all(table_name, wrapper)
-    all_hash(table_name).map { |r| wrapper.new(r) }
+  def all(table_name, wrapper, args = nil)
+    all_hash(table_name, args).map { |r| wrapper.new(r) }
   end
 
   # Return all rows from a table as Hashes.
   #
   # @param table_name [Symbol] the db table name.
+  # @param args [Hash] the optional where-clause conditions.
   # @return [Array] the table rows.
-  def all_hash(table_name)
-    DB[table_name].all
+  def all_hash(table_name, args = nil)
+    args.nil? ? DB[table_name].all : DB[table_name].where(args).all
   end
 
   # Find a row in a table. Raises an exception if it is not found.
@@ -110,6 +112,15 @@ class RepoBase
     DB[table_name].where(id: id).delete
   end
 
+  # Deactivate a record.
+  # Sets the +active+ column to false.
+  #
+  # @param table_name [Symbol] the db table name.
+  # @param id [Integer] the id of the record.
+  def deactivate(table_name, id)
+    DB[table_name].where(id: id).update(active: false)
+  end
+
   # Run a query returning an array of values from the first column.
   #
   # @param query [String] the SQL query to run.
@@ -124,6 +135,17 @@ class RepoBase
   # @return [String] JSON String version of the Hash.
   def hash_to_jsonb_str(hash)
     "{#{(hash || {}).map { |k, v| %("#{k}":"#{v}") }.join(',')}}"
+  end
+
+  # Log the context of a transaction. Useful for joining to logged_actions table which has no context.
+  #
+  # @param user_name [String] the current user's name.
+  # @param context [String] more context about what led to the action.
+  # @param route_url [String] the application route that led to the transaction.
+  def log_action(user_name: nil, context: nil, route_url: nil)
+    DB[Sequel[:audit][:logged_action_details]].insert(user_name: user_name,
+                                                      context: context,
+                                                      route_url: route_url)
   end
 
   def self.inherited(klass)

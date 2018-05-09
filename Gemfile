@@ -17,6 +17,7 @@ gem 'sass'
 gem 'sequel'
 gem 'sequel_postgresql_triggers'
 gem 'tilt'
+# gem 'tiny_tds' -- Required if dataminer has to run MSSqlServer reports.
 gem 'yard'
 
 gem 'crossbeams-dataminer', git: 'https://github.com/NoSoft-SA/crossbeams-dataminer.git'
@@ -28,11 +29,11 @@ gem 'roda-data_grid', git: 'https://github.com/NoSoft-SA/roda-data_grid.git'
 # gem 'roda-data_grid',                 path: File.expand_path('../../roda-data_grid', __FILE__)
 
 group :test do
-  gem 'minitest', '~>5.10.3'
+  gem 'minitest', '~>5.11'
   gem 'minitest-hooks', '1.4.2'
   gem 'minitest-rg'
   gem 'minitest-stub_any_instance', '~>1.0.1'
-  gem 'mocha', '~>1.3.0'
+  gem 'mocha', '~>1.5'
   gem 'rack-test'
 end
 

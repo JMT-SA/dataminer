@@ -18,8 +18,8 @@
     <link rel="stylesheet" href="/css/selectr.min.css">
     <link rel="stylesheet" href="/css/multi.min.css">
     <%= assets(:css) %>
-    <%= content_for :late_style %>
 
+    <%= content_for :late_head %>
   </head>
   <body class="site">
   <header>
@@ -50,6 +50,7 @@
 
     <div class="dialog" aria-hidden="true" id="crossbeams-popup-dialog-level1">
       <div class="dialog-overlay" tabindex="-1"></div> <!-- data-a11y-dialog-hide></div> -->
+      <div id="dialog-error-level1" class="brown bg-washed-red ba b--light-red absolute top-1 left-1 pa3" style="display:none;z-index:60;min-width:20em;"></div>
       <div class="dialog-content" aria-labelledby="dialogTitleLevel1" aria-describedby="dialogDescription" role="dialog">
         <div role="document">
           <button data-a11y-dialog-hide class="dialog-close" aria-label="Close this dialog window">&times;</button>
@@ -61,6 +62,7 @@
 
     <div class="dialog" aria-hidden="true" id="crossbeams-popup-dialog-level2">
       <div class="dialog-overlay" tabindex="-1"></div> <!-- data-a11y-dialog-hide></div> -->
+      <div id="dialog-error-level2" class="brown bg-washed-red ba b--light-red absolute top-1 left-1 pa3" style="display:none;z-index:60;min-width:20em;"></div>
       <div class="dialog-content" aria-labelledby="dialogTitleLevel2" aria-describedby="dialogDescription" role="dialog">
         <div role="document">
           <button data-a11y-dialog-hide class="dialog-close" aria-label="Close this dialog window">&times;</button>

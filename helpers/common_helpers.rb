@@ -13,13 +13,26 @@ module CommonHelpers
     @layout.render
   end
 
-  def show_partial_or_page(partial, &block)
-    @layout = block.yield
-    @layout.add_csrf_tag(csrf_tag)
-    if partial
-      @layout.render
+  def show_partial_or_page(route, &block)
+    page = stashed_page
+    if page
+      show_page { page }
+    elsif fetch?(route)
+      show_partial(&block)
     else
-      view('crossbeams_layout_page')
+      show_page(&block)
+    end
+  end
+
+  def re_show_form(route, res, url: nil, &block)
+    form = block.yield
+    if fetch?(route)
+      content = show_partial { form }
+      update_dialog_content(content: content, error: res.message)
+    else
+      flash[:error] = res.message
+      stash_page(form)
+      route.redirect url || '/'
     end
   end
 
@@ -76,22 +89,27 @@ module CommonHelpers
 
   def current_user
     return nil unless session[:user_id]
-    @current_user ||= UserRepo.new.find(:users, User, session[:user_id])
+    @current_user ||= DevelopmentApp::UserRepo.new.find(:users, DevelopmentApp::User, session[:user_id])
   end
 
-  def authorised?(programs, sought_permission)
+  def store_current_functional_area(functional_area_name)
+    @functional_area_id = SecurityApp::MenuRepo.new.functional_area_id_for_name(functional_area_name)
+  end
+
+  def current_functional_area
+    @functional_area_id
+  end
+
+  def authorised?(programs, sought_permission, functional_area_id = nil)
     return false unless current_user
+    functional_area_id ||= current_functional_area
     prog_repo = SecurityApp::MenuRepo.new
-    prog_repo.authorise?(current_user, Array(programs), sought_permission)
+    prog_repo.authorise?(current_user, Array(programs), sought_permission, functional_area_id)
   end
 
-  def auth_blocked?(programs, sought_permission)
+  def auth_blocked?(functional_area_name, programs, sought_permission)
+    store_current_functional_area(functional_area_name)
     !authorised?(programs, sought_permission)
-  end
-
-  def show_unauthorised
-    response.status = 404
-    view(inline: "<div class='crossbeams-warning-note'><strong>Warning</strong><br>You do not have permission for this task</div>")
   end
 
   def can_do_dataminer_admin?
@@ -102,7 +120,11 @@ module CommonHelpers
   end
 
   def redirect_to_last_grid(route)
-    route.redirect session[:last_grid_url]
+    if fetch?(route)
+      redirect_via_json(session[:last_grid_url])
+    else
+      route.redirect session[:last_grid_url]
+    end
   end
 
   def redirect_via_json_to_last_grid
@@ -115,14 +137,6 @@ module CommonHelpers
 
   def load_via_json(url)
     { loadNewUrl: url }.to_json
-  end
-
-  def show_json_notice(message)
-    { flash: { notice: message } }.to_json
-  end
-
-  def show_json_error(message)
-    { flash: { error: message } }.to_json
   end
 
   def update_grid_row(id, changes:, notice: nil)
@@ -150,11 +164,6 @@ module CommonHelpers
   end
 
   def show_json_exception(err)
-    { exception: err.class.name, flash: { error: "An error occurred: #{err.message}" } }.to_json
-  end
-
-  def handle_json_error(err)
-    response.status = 500
     { exception: err.class.name, flash: { error: "An error occurred: #{err.message}" } }.to_json
   end
 
@@ -195,31 +204,12 @@ module CommonHelpers
     res.to_json
   end
 
-  def handle_error(err)
-    response.status = 500
-    view(inline: "<div class='crossbeams-error-note'><strong>Error</strong><br>#{err}</div>")
-  end
-
   def handle_not_found(route)
     if request.xhr?
       "<div class='crossbeams-error-note'><strong>Error</strong><br>The requested resource was not found.</div>"
     else
       route.redirect '/not_found'
     end
-  end
-
-  def dialog_warning(message)
-    "<div class='crossbeams-warning-note'><strong>Warning</strong><br>#{message}</div>"
-  end
-
-  def dialog_permission_error
-    response.status = 404
-    "<div class='crossbeams-warning-note'><strong>Warning</strong><br>You do not have permission for this task</div>"
-  end
-
-  def dialog_error(err, state = nil)
-    response.status = 500
-    "<div class='crossbeams-error-note'><strong>#{state || 'ERROR'}</strong><br>#{err}</div>"
   end
 
   def stash_page(value)

@@ -2,9 +2,9 @@
 
 # rubocop:disable Metrics/BlockLength
 
-class Dataminer < Roda
+class Dataminer < Roda # rubocop:disable Metrics/ClassLength
   route 'admin', 'dataminer' do |r|
-    context = { for_grid_queries: session[:dm_admin_path] == :grids }
+    context = { for_grid_queries: session[:dm_admin_path] == :grids, route_url: request.path }
     interactor = DataminerInteractor.new(current_user, {}, context, {})
 
     r.is do
@@ -12,12 +12,12 @@ class Dataminer < Roda
     end
 
     r.on 'reports_grid' do
-      response['Content-Type'] = 'application/json'
+      return_json_response
       interactor.admin_report_list_grid
     end
 
     r.on 'grids_grid' do
-      response['Content-Type'] = 'application/json'
+      return_json_response
       interactor.admin_report_list_grid(for_grids: true)
     end
 
@@ -93,7 +93,7 @@ class Dataminer < Roda
       end
 
       r.delete do
-        response['Content-Type'] = 'application/json'
+        return_json_response
         res = interactor.delete_report(id)
         if res.success
           delete_grid_row(id, notice: res.message)

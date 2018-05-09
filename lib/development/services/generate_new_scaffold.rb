@@ -6,56 +6,88 @@ class GenerateNewScaffold < BaseService
   include UtilityFunctions
   attr_accessor :opts
 
-  # >>> check yml popup on delete requirements
+  class ScaffoldConfig
+    attr_reader :inflector, :table, :singlename, :new_applet, :applet, :program,
+                :table_meta, :label_field, :short_name, :has_short_name, :program_text,
+                :nested_route
+
+    def initialize(params, roda_class_name)
+      @roda_class_name  = roda_class_name
+      @inflector        = Dry::Inflector.new
+      @table            = params[:table]
+      @singlename       = @inflector.singularize(params[:short_name])
+      @has_short_name   = params[:short_name] != params[:table]
+      @applet           = params[:applet]
+      @new_applet       = @applet == 'other'
+      @applet           = params[:other] if @applet == 'other'
+      @program_text     = params[:program].strip
+      @program          = @program_text.tr(' ', '_')
+      @table_meta       = TableMeta.new(@table)
+      @label_field      = params[:label_field] || @table_meta.likely_label_field
+      @shared_repo_name = params[:shared_repo_name]
+      @nested_route     = params[:nested_route_parent].empty? ? nil : params[:nested_route_parent]
+    end
+
+    def classnames
+      modulename    = "#{@applet.split('_').map(&:capitalize).join}App"
+      classname     = @inflector.camelize(@singlename)
+      applet_klass  = @inflector.camelize(@applet)
+      program_klass = @inflector.camelize(@program)
+      {
+        roda_class: @roda_class_name,
+        module: modulename,
+        class: classname,
+        applet: applet_klass,
+        program: program_klass,
+        text_name: @inflector.singularize(@table).split('_').map(&:capitalize).join(' '),
+        schema: "#{classname}Schema",
+        repo: "#{@shared_repo_name.nil? || @shared_repo_name.empty? ? classname : @inflector.camelize(@shared_repo_name.sub(/Repo$/, ''))}Repo",
+        namespaced_repo: "#{modulename}::#{@shared_repo_name.nil? || @shared_repo_name.empty? ? classname : @inflector.camelize(@shared_repo_name.sub(/Repo$/, ''))}Repo",
+        interactor: "#{classname}Interactor",
+        namespaced_interactor: "#{modulename}::#{classname}Interactor",
+        view_prefix: "#{applet_klass}::#{program_klass}::#{classname}"
+      }
+    end
+
+    def filenames
+      repofile = if @shared_repo_name
+                   @inflector.underscore(@shared_repo_name.sub(/Repo$/, ''))
+                 else
+                   @singlename
+                 end
+      {
+        applet: "lib/applets/#{@applet}_applet.rb",
+        dm_query: "grid_definitions/dataminer_queries/#{@table}.yml",
+        list: "grid_definitions/lists/#{@table}.yml",
+        search: "grid_definitions/searches/#{@table}.yml",
+        repo: "lib/#{@applet}/repositories/#{repofile}_repo.rb",
+        inter: "lib/#{@applet}/interactors/#{@singlename}_interactor.rb",
+        entity: "lib/#{@applet}/entities/#{@singlename}.rb",
+        validation: "lib/#{@applet}/validations/#{@singlename}_schema.rb",
+        route: "routes/#{@applet}/#{@program}.rb",
+        uirule: "lib/#{@applet}/ui_rules/#{@singlename}_rule.rb",
+        view: {
+          new: "lib/#{@applet}/views/#{@singlename}/new.rb",
+          edit: "lib/#{@applet}/views/#{@singlename}/edit.rb",
+          show: "lib/#{@applet}/views/#{@singlename}/show.rb"
+        },
+        test: {
+          interactor: "lib/#{@applet}/test/interactors/test_#{@singlename}_interactor.rb",
+          repo: "lib/#{@applet}/test/repositories/test_#{repofile}_repo.rb",
+          route: "test/routes/#{@applet}/test_#{@program}_routes.rb"
+        }
+      }
+    end
+  end
+
   # TODO: dry-validation: type to pre-strip strings...
-  def initialize(params)
-    @opts             = OpenStruct.new(params)
-    @opts.new_applet  = @opts.applet == 'other'
-    @opts.applet      = params[:other] if @opts.applet == 'other'
-    @opts.applet_module = "#{@opts.applet.split('_').map(&:capitalize).join}App"
-    @opts.program   ||= 'progname'
-    @opts.singlename  = simple_single(@opts.short_name)
-    @opts.klassname   = camelize(@opts.singlename)
-    @opts.reponame    = if params[:shared_repo_name]
-                          camelize(params[:shared_repo_name].sub(/Repo$/, ''))
-                        else
-                          @opts.klassname
-                        end
-    @opts.repofile    = if params[:shared_repo_name]
-                          inflector = Dry::Inflector.new
-                          inflector.underscore(params[:shared_repo_name].sub(/Repo$/, ''))
-                        else
-                          @opts.singlename
-                        end
-    # @opts.query_name  = params[:query_name]  || @opts.table
-    @opts.list_name   = params[:list_name]   || @opts.table
-    # @opts.search_name = params[:search_name] || @opts.table
-    @opts.label_field = params[:label_field]
-    @opts.table_meta  = TableMeta.new(@opts.table)
-    @opts.label_field = @opts.table_meta.likely_label_field if @opts.label_field.nil?
+  def initialize(params, roda_class_name)
+    @opts = ScaffoldConfig.new(params, roda_class_name)
   end
 
   def call
-    sources = { opts: opts, paths: {} }
-    sources[:paths][:dm_query] = "grid_definitions/dataminer_queries/#{opts.table}.yml"
-    sources[:paths][:list] = "grid_definitions/lists/#{opts.table}.yml"
-    sources[:paths][:search] = "grid_definitions/searches/#{opts.table}.yml"
-    sources[:paths][:repo] = "lib/#{opts.applet}/repositories/#{opts.repofile}_repo.rb"
-    sources[:paths][:inter] = "lib/#{opts.applet}/interactors/#{opts.singlename}_interactor.rb"
-    sources[:paths][:entity] = "lib/#{opts.applet}/entities/#{opts.singlename}.rb"
-    sources[:paths][:validation] = "lib/#{opts.applet}/validations/#{opts.singlename}_schema.rb"
-    sources[:paths][:route] = "routes/#{opts.applet}/#{opts.program}.rb"
-    sources[:paths][:uirule] = "lib/#{opts.applet}/ui_rules/#{opts.singlename}_rule.rb"
-    sources[:paths][:view] = {
-      new: "lib/#{opts.applet}/views/#{opts.singlename}/new.rb",
-      edit: "lib/#{opts.applet}/views/#{opts.singlename}/edit.rb",
-      show: "lib/#{opts.applet}/views/#{opts.singlename}/show.rb"
-    }
-    sources[:paths][:test] = {
-      interactor: "lib/#{opts.applet}/test/interactors/test_#{opts.singlename}_interactor.rb",
-      repo: "lib/#{opts.applet}/test/repositories/test_#{opts.repofile}_repo.rb",
-      route: "test/routes/test_#{opts.singlename}_routes.rb"
-    }
+    sources = { opts: opts, paths: @opts.filenames }
+
     report               = QueryMaker.call(opts)
     sources[:query]      = wrapped_sql_from_report(report)
     sources[:dm_query]   = DmQueryMaker.call(report, opts)
@@ -70,11 +102,7 @@ class GenerateNewScaffold < BaseService
     sources[:route]      = RouteMaker.call(opts)
     sources[:menu]       = MenuMaker.call(opts)
     sources[:test]       = TestMaker.call(opts)
-
-    if opts.new_applet
-      sources[:paths][:applet] = "lib/applets/#{opts.applet}_applet.rb"
-      sources[:applet]         = AppletMaker.call(opts)
-    end
+    sources[:applet]     = AppletMaker.call(opts) if opts.new_applet
 
     sources
   end
@@ -96,11 +124,14 @@ class GenerateNewScaffold < BaseService
       boolean: 'Types::Bool',
       float: 'Types::Float',
       datetime: 'Types::DateTime',
+      date: 'Types::Date',
+      decimal: 'Types::Decimal',
       integer_array: 'Types::Array',
-      string_array: 'Types::Array'
+      string_array: 'Types::Array',
+      jsonb: 'Types::Hash'
     }.freeze
 
-    VALIDATION_TYPE_LOOKUP = {
+    VALIDATION_EXPECT_LOOKUP = {
       integer: '(:int?)',
       string: '(:str?)',
       boolean: '(:bool?)',
@@ -108,12 +139,33 @@ class GenerateNewScaffold < BaseService
       date: '(:date?)',
       time: '(:time?)',
       float: '(:float?)',
+      decimal: '(:decimal?)',
+      jsonb: '(:hash?)',
+      integer_array: nil, # ' { each(:int?) }',
+      string_array: nil # ' { each(:str?) }'
+    }.freeze
+
+    VALIDATION_TYPE_LOOKUP = {
+      integer: ':int',
+      string: 'Types::StrippedString',
+      boolean: ':bool',
+      datetime: ':date_time',
+      date: ':date',
+      time: ':time',
+      float: ':float',
+      decimal: ':decimal',
+      jsonb: ':hash',
+      integer_array: ':array',
+      string_array: ':array'
+    }.freeze
+
+    VALIDATION_ARRAY_LOOKUP = {
       integer_array: ' { each(:int?) }',
       string_array: ' { each(:str?) }'
     }.freeze
 
     def initialize(table)
-      repo             = DevelopmentRepo.new
+      repo             = DevelopmentApp::DevelopmentRepo.new
       @columns         = repo.table_columns(table)
       @column_names    = repo.table_col_names(table)
       @indexed_columns = repo.indexed_columns(table)
@@ -144,7 +196,15 @@ class GenerateNewScaffold < BaseService
     end
 
     def column_dry_validation_type(column)
-      VALIDATION_TYPE_LOOKUP[@col_lookup[column][:type]] || "(Types::??? (#{@col_lookup[column][:type]}))"
+      VALIDATION_TYPE_LOOKUP[@col_lookup[column][:type]] || "Types::??? (#{@col_lookup[column][:type]})"
+    end
+
+    def column_dry_validation_array_extra(column)
+      VALIDATION_ARRAY_LOOKUP[@col_lookup[column][:type]]
+    end
+
+    def column_dry_validation_expect_type(column)
+      VALIDATION_EXPECT_LOOKUP[@col_lookup[column][:type]] || "(Types::??? (#{@col_lookup[column][:type]}))"
     end
 
     def active_column_present?
@@ -162,10 +222,10 @@ class GenerateNewScaffold < BaseService
       <<~RUBY
         # frozen_string_literal: true
 
-        module #{opts.applet_module}
-          class #{opts.klassname}Interactor < BaseInteractor
+        module #{opts.classnames[:module]}
+          class #{opts.classnames[:interactor]} < BaseInteractor
             def repo
-              @repo ||= #{opts.reponame}Repo.new
+              @repo ||= #{opts.classnames[:repo]}.new
             end
 
             def #{opts.singlename}(cached = true)
@@ -177,37 +237,57 @@ class GenerateNewScaffold < BaseService
             end
 
             def validate_#{opts.singlename}_params(params)
-              #{opts.klassname}Schema.call(params)
+              #{opts.classnames[:schema]}.call(params)
             end
 
-            def create_#{opts.singlename}(params)
+            def create_#{opts.singlename}(#{needs_id}params)#{add_parent_to_params}
               res = validate_#{opts.singlename}_params(params)
               return validation_failed_response(res) unless res.messages.empty?
-              @id = repo.create_#{opts.singlename}(res)
-              success_response("Created #{opts.singlename.tr('_', ' ')} \#{#{opts.singlename}.#{opts.label_field}}",
+              DB.transaction do
+                @id = repo.create_#{opts.singlename}(res)
+                log_transaction
+              end
+              success_response("Created #{opts.classnames[:text_name].downcase} \#{#{opts.singlename}.#{opts.label_field}}",
                                #{opts.singlename})
             rescue Sequel::UniqueConstraintViolation
-              validation_failed_response(OpenStruct.new(messages: { #{opts.label_field}: ['This #{opts.singlename.tr('_', ' ')} already exists'] }))
+              validation_failed_response(OpenStruct.new(messages: { #{opts.label_field}: ['This #{opts.classnames[:text_name].downcase} already exists'] }))
             end
 
             def update_#{opts.singlename}(id, params)
               @id = id
               res = validate_#{opts.singlename}_params(params)
               return validation_failed_response(res) unless res.messages.empty?
-              repo.update_#{opts.singlename}(id, res)
-              success_response("Updated #{opts.singlename.tr('_', ' ')} \#{#{opts.singlename}.#{opts.label_field}}",
+              DB.transaction do
+                repo.update_#{opts.singlename}(id, res)
+                log_transaction
+              end
+              success_response("Updated #{opts.classnames[:text_name].downcase} \#{#{opts.singlename}.#{opts.label_field}}",
                                #{opts.singlename}(false))
             end
 
             def delete_#{opts.singlename}(id)
               @id = id
               name = #{opts.singlename}.#{opts.label_field}
-              repo.delete_#{opts.singlename}(id)
-              success_response("Deleted #{opts.singlename.tr('_', ' ')} \#{name}")
+              DB.transaction do
+                repo.delete_#{opts.singlename}(id)
+                log_transaction
+              end
+              success_response("Deleted #{opts.classnames[:text_name].downcase} \#{name}")
             end
           end
         end
       RUBY
+    end
+
+    private
+
+    def needs_id
+      opts.nested_route ? 'parent_id, ' : ''
+    end
+
+    def add_parent_to_params
+      parent_id_name = opts.inflector.foreign_key(opts.inflector.singularize(opts.nested_route)) if opts.nested_route
+      opts.nested_route ? "\n      params[:#{parent_id_name}] = parent_id" : ''
     end
   end
 
@@ -218,22 +298,24 @@ class GenerateNewScaffold < BaseService
     end
 
     def call
+      alias_active   = opts.has_short_name ? "#{UtilityFunctions.newline_and_spaces(21)}alias: :#{opts.singlename}," : ''
+      alias_inactive = opts.has_short_name ? "#{UtilityFunctions.newline_and_spaces(26)}alias: :#{opts.singlename}," : ''
       if @opts.table_meta.active_column_present?
         <<~RUBY
           # frozen_string_literal: true
 
-          module #{opts.applet_module}
-            class #{opts.reponame}Repo < RepoBase
-              build_for_select :#{opts.table},
+          module #{opts.classnames[:module]}
+            class #{opts.classnames[:repo]} < BaseRepo
+              build_for_select :#{opts.table},#{alias_active}
                                label: :#{opts.label_field},
                                value: :id,
                                order_by: :#{opts.label_field}
-              build_inactive_select :#{opts.table},
+              build_inactive_select :#{opts.table},#{alias_inactive}
                                     label: :#{opts.label_field},
                                     value: :id,
                                     order_by: :#{opts.label_field}
 
-              crud_calls_for :#{opts.table}, name: :#{opts.singlename}, wrapper: #{opts.klassname}
+              crud_calls_for :#{opts.table}, name: :#{opts.singlename}, wrapper: #{opts.classnames[:class]}
             end
           end
         RUBY
@@ -241,15 +323,15 @@ class GenerateNewScaffold < BaseService
         <<~RUBY
           # frozen_string_literal: true
 
-          module #{opts.applet_module}
-            class #{opts.reponame}Repo < RepoBase
-              build_for_select :#{opts.table},
+          module #{opts.classnames[:module]}
+            class #{opts.classnames[:repo]} < BaseRepo
+              build_for_select :#{opts.table},#{alias_active}
                                label: :#{opts.label_field},
                                value: :id,
                                no_active_check: true,
                                order_by: :#{opts.label_field}
 
-              crud_calls_for :#{opts.table}, name: :#{opts.singlename}, wrapper: #{opts.klassname}
+              crud_calls_for :#{opts.table}, name: :#{opts.singlename}, wrapper: #{opts.classnames[:class]}
             end
           end
         RUBY
@@ -268,8 +350,8 @@ class GenerateNewScaffold < BaseService
       <<~RUBY
         # frozen_string_literal: true
 
-        module #{opts.applet_module}
-          class #{opts.klassname} < Dry::Struct
+        module #{opts.classnames[:module]}
+          class #{opts.classnames[:class]} < Dry::Struct
             #{attr.join("\n    ")}
           end
         end
@@ -298,8 +380,10 @@ class GenerateNewScaffold < BaseService
       <<~RUBY
         # frozen_string_literal: true
 
-        module #{opts.applet_module}
-          #{opts.klassname}Schema = Dry::Validation.Form do
+        module #{opts.classnames[:module]}
+          #{opts.classnames[:schema]} = Dry::Validation.Form do
+            configure { config.type_specs = true }
+
             #{attr.join("\n    ")}
           end
         end
@@ -314,11 +398,11 @@ class GenerateNewScaffold < BaseService
         detail = opts.table_meta.col_lookup[col]
         fill_opt = detail[:allow_null] ? 'maybe' : 'filled'
         max = detail[:max_length] && detail[:max_length] < 200 ? "max_size?: #{detail[:max_length]}" : nil
-        rules = [opts.table_meta.column_dry_validation_type(col), max].compact.join(', ')
+        rules = [opts.table_meta.column_dry_validation_expect_type(col), max, opts.table_meta.column_dry_validation_array_extra(col)].compact.join(', ')
         attr << if col == :id
-                  "optional(:#{col}).#{fill_opt}#{rules}"
+                  "optional(:#{col}, #{opts.table_meta.column_dry_validation_type(col)}).#{fill_opt}#{rules}"
                 else
-                  "required(:#{col}).#{fill_opt}#{rules}"
+                  "required(:#{col}, #{opts.table_meta.column_dry_validation_type(col)}).#{fill_opt}#{rules}"
                 end
       end
       attr
@@ -352,7 +436,7 @@ class GenerateNewScaffold < BaseService
       list[:page_controls] = []
       list[:page_controls] << { control_type: :link,
                                 url: "/#{opts.applet}/#{opts.program}/#{opts.table}/new",
-                                text: "New #{opts.singlename.split('_').map(&:capitalize).join(' ')}",
+                                text: "New #{opts.classnames[:text_name]}",
                                 style: :button,
                                 behaviour: :popup }
       list.to_yaml
@@ -386,7 +470,7 @@ class GenerateNewScaffold < BaseService
       search[:page_controls] = []
       search[:page_controls] << { control_type: :link,
                                   url: "/#{opts.applet}/#{opts.program}/#{opts.table}/new",
-                                  text: "New #{opts.singlename.split('_').map(&:capitalize).join(' ')}",
+                                  text: "New #{opts.classnames[:text_name]}",
                                   style: :button,
                                   behaviour: :popup }
       search.to_yaml
@@ -400,21 +484,18 @@ class GenerateNewScaffold < BaseService
     end
 
     def call
-      roda_klass    = ENV['RODA_KLASS']
-      applet_klass  = UtilityFunctions.camelize(opts.applet)
-      program_klass = UtilityFunctions.camelize(opts.program)
       <<~RUBY
         # frozen_string_literal: true
 
         # rubocop:disable Metrics/ClassLength
         # rubocop:disable Metrics/BlockLength
 
-        class #{roda_klass} < Roda
+        class #{opts.classnames[:roda_class]} < Roda
           route '#{opts.program}', '#{opts.applet}' do |r|
             # #{opts.table.upcase.tr('_', ' ')}
             # --------------------------------------------------------------------------
             r.on '#{opts.table}', Integer do |id|
-              interactor = #{opts.applet_module}::#{opts.klassname}Interactor.new(current_user, {}, {}, {})
+              interactor = #{opts.classnames[:namespaced_interactor]}.new(current_user, {}, { route_url: request.path }, {})
 
               # Check for notfound:
               r.on !interactor.exists?(:#{opts.table}, id) do
@@ -422,74 +503,96 @@ class GenerateNewScaffold < BaseService
               end
 
               r.on 'edit' do   # EDIT
-                if authorised?('#{opts.program}', 'edit')
-                  show_partial { #{applet_klass}::#{program_klass}::#{opts.klassname}::Edit.call(id) }
-                else
-                  dialog_permission_error
-                end
+                raise Crossbeams::AuthorizationError unless authorised?('#{opts.program_text}', 'edit')
+                show_partial { #{opts.classnames[:view_prefix]}::Edit.call(id) }
               end
               r.is do
                 r.get do       # SHOW
-                  if authorised?('#{opts.program}', 'read')
-                    show_partial { #{applet_klass}::#{program_klass}::#{opts.klassname}::Show.call(id) }
-                  else
-                    dialog_permission_error
-                  end
+                  raise Crossbeams::AuthorizationError unless authorised?('#{opts.program_text}', 'read')
+                  show_partial { #{opts.classnames[:view_prefix]}::Show.call(id) }
                 end
                 r.patch do     # UPDATE
-                  response['Content-Type'] = 'application/json'
+                  return_json_response
                   res = interactor.update_#{opts.singlename}(id, params[:#{opts.singlename}])
                   if res.success
                     update_grid_row(id, changes: { #{grid_refresh_fields} },
                                     notice: res.message)
                   else
-                    content = show_partial { #{applet_klass}::#{program_klass}::#{opts.klassname}::Edit.call(id, params[:#{opts.singlename}], res.errors) }
+                    content = show_partial { #{opts.classnames[:view_prefix]}::Edit.call(id, params[:#{opts.singlename}], res.errors) }
                     update_dialog_content(content: content, error: res.message)
                   end
                 end
                 r.delete do    # DELETE
-                  response['Content-Type'] = 'application/json'
+                  return_json_response
+                  raise Crossbeams::AuthorizationError unless authorised?('#{opts.program_text}', 'delete')
                   res = interactor.delete_#{opts.singlename}(id)
                   delete_grid_row(id, notice: res.message)
                 end
               end
             end
-            r.on '#{opts.table}' do
-              interactor = #{opts.applet_module}::#{opts.klassname}Interactor.new(current_user, {}, {}, {})
-              r.on 'new' do    # NEW
-                if authorised?('#{opts.program}', 'new')
-                  page = stashed_page
-                  if page
-                    show_page { page }
-                  else
-                    show_partial_or_page(fetch?(r)) { #{applet_klass}::#{program_klass}::#{opts.klassname}::New.call(remote: fetch?(r)) }
-                  end
-                else
-                  fetch?(r) ? dialog_permission_error : show_unauthorised
-                end
+
+            #{new_create_routes.gsub("\n", "\n    ").sub(/    \Z/, '')}
+          end
+        end
+
+        # rubocop:enable Metrics/ClassLength
+        # rubocop:enable Metrics/BlockLength
+      RUBY
+    end
+
+    def new_create_routes
+      if opts.nested_route
+        nested_new_routes
+      else
+        plain_new_routes
+      end
+    end
+
+    def plain_new_routes
+      <<~RUBY
+        r.on '#{opts.table}' do
+          interactor = #{opts.classnames[:namespaced_interactor]}.new(current_user, {}, { route_url: request.path }, {})
+          r.on 'new' do    # NEW
+            raise Crossbeams::AuthorizationError unless authorised?('#{opts.program_text}', 'new')
+            show_partial_or_page(r) { #{opts.classnames[:view_prefix]}::New.call(remote: fetch?(r)) }
+          end
+          r.post do        # CREATE
+            res = interactor.create_#{opts.singlename}(params[:#{opts.singlename}])
+            if res.success
+              flash[:notice] = res.message
+              redirect_to_last_grid(r)
+            else
+              re_show_form(r, res, url: '/#{opts.applet}/#{opts.program}/#{opts.table}/new') do
+                #{opts.classnames[:view_prefix]}::New.call(form_values: params[:#{opts.singlename}],
+                #{UtilityFunctions.spaces_from_string_lengths(11, opts.classnames[:view_prefix])}form_errors: res.errors,
+                #{UtilityFunctions.spaces_from_string_lengths(11, opts.classnames[:view_prefix])}remote: fetch?(r))
               end
-              r.post do        # CREATE
-                res = interactor.create_#{opts.singlename}(params[:#{opts.singlename}])
-                if res.success
-                  flash[:notice] = res.message
-                  if fetch?(r)
-                    redirect_via_json_to_last_grid
-                  else
-                    redirect_to_last_grid(r)
-                  end
-                elsif fetch?(r)
-                  content = show_partial do
-                    #{applet_klass}::#{program_klass}::#{opts.klassname}::New.call(form_values: params[:#{opts.singlename}],
-                    #{UtilityFunctions.spaces_from_string_lengths(15, applet_klass, program_klass, opts.klassname)}form_errors: res.errors,
-                    #{UtilityFunctions.spaces_from_string_lengths(15, applet_klass, program_klass, opts.klassname)}remote: true)
-                  end
-                  update_dialog_content(content: content, error: res.message)
-                else
-                  flash[:error] = res.message
-                  stash_page(#{applet_klass}::#{program_klass}::#{opts.klassname}::New.call(form_values: params[:#{opts.singlename}],
-                             #{UtilityFunctions.spaces_from_string_lengths(15, applet_klass, program_klass, opts.klassname)}form_errors: res.errors,
-                             #{UtilityFunctions.spaces_from_string_lengths(15, applet_klass, program_klass, opts.klassname)}remote: false))
-                  r.redirect '/#{opts.applet}/#{opts.program}/#{opts.table}/new'
+            end
+          end
+        end
+      RUBY
+    end
+
+    def nested_new_routes
+      <<~RUBY
+        r.on '#{opts.nested_route}', Integer do |id|
+          r.on '#{opts.table}' do
+            interactor = #{opts.classnames[:namespaced_interactor]}.new(current_user, {}, { route_url: request.path }, {})
+            r.on 'new' do    # NEW
+              raise Crossbeams::AuthorizationError unless authorised?('#{opts.program_text}', 'new')
+              show_partial_or_page(r) { #{opts.classnames[:view_prefix]}::New.call(id, remote: fetch?(r)) }
+            end
+            r.post do        # CREATE
+              res = interactor.create_#{opts.singlename}(id, params[:#{opts.singlename}])
+              if res.success
+                flash[:notice] = res.message
+                redirect_to_last_grid(r)
+              else
+                re_show_form(r, res, url: "/#{opts.applet}/#{opts.program}/#{opts.nested_route}/\#{id}/#{opts.table}/new") do
+                  #{opts.classnames[:view_prefix]}::New.call(id,
+                  #{UtilityFunctions.spaces_from_string_lengths(11, opts.classnames[:view_prefix])}form_values: params[:#{opts.singlename}],
+                  #{UtilityFunctions.spaces_from_string_lengths(11, opts.classnames[:view_prefix])}form_errors: res.errors,
+                  #{UtilityFunctions.spaces_from_string_lengths(11, opts.classnames[:view_prefix])}remote: fetch?(r))
                 end
               end
             end
@@ -499,7 +602,7 @@ class GenerateNewScaffold < BaseService
     end
 
     def grid_refresh_fields
-      opts.table_meta.columns_without(%i[id created_at updated_at]).map do |col|
+      opts.table_meta.columns_without(%i[id created_at updated_at active]).map do |col|
         "#{col}: res.instance[:#{col}]"
       end.join(', ')
     end
@@ -516,9 +619,9 @@ class GenerateNewScaffold < BaseService
         # frozen_string_literal: true
 
         module UiRules
-          class #{opts.klassname}Rule < Base
+          class #{opts.classnames[:class]}Rule < Base
             def generate_rules
-              @repo = #{opts.applet_module}::#{opts.reponame}Repo.new
+              @repo = #{opts.classnames[:namespaced_repo]}.new
               make_form_object
               apply_form_values
 
@@ -565,9 +668,9 @@ class GenerateNewScaffold < BaseService
         fk = opts.table_meta.fk_lookup[f]
         next unless fk
         tm = TableMeta.new(fk[:table])
-        singlename  = UtilityFunctions.simple_single(fk[:table].to_s)
-        klassname   = UtilityFunctions.camelize(singlename)
-        fk_repo = "#{opts.applet_module}::#{klassname}Repo"
+        singlename  = opts.inflector.singularize(fk[:table].to_s)
+        klassname   = opts.inflector.camelize(singlename)
+        fk_repo = "#{opts.classnames[:module]}::#{klassname}Repo"
         code = tm.likely_label_field
         flds << "# #{f}_label = #{fk_repo}.new.find_#{singlename}(@form_object.#{f})&.#{code}"
         flds << "#{f}_label = @repo.find(:#{fk[:table]}, #{klassname}, @form_object.#{f})&.#{code}"
@@ -603,9 +706,9 @@ class GenerateNewScaffold < BaseService
     def make_select(field, can_be_null)
       fk = opts.table_meta.fk_lookup[field]
       return "#{field}: {}" if fk.nil?
-      singlename  = UtilityFunctions.simple_single(fk[:table].to_s)
-      klassname   = UtilityFunctions.camelize(singlename)
-      fk_repo = "#{opts.applet_module}::#{klassname}Repo"
+      singlename  = opts.inflector.singularize(fk[:table].to_s)
+      klassname   = opts.inflector.camelize(singlename)
+      fk_repo = "#{opts.classnames[:module]}::#{klassname}Repo"
       # get fk data & make select - or (if no fk....)
       tm = TableMeta.new(fk[:table])
       required = can_be_null ? '' : ', required: true'
@@ -658,11 +761,11 @@ class GenerateNewScaffold < BaseService
         # rubocop:disable Metrics/ClassLength
         # rubocop:disable Metrics/AbcSize
 
-        module #{opts.applet_module}
-          class Test#{opts.reponame}Repo < MiniTestWithHooks
+        module #{opts.classnames[:module]}
+          class Test#{opts.classnames[:repo]} < MiniTestWithHooks
 
             def test_for_selects
-              assert_respond_to repo, :for_select_#{opts.table}
+              assert_respond_to repo, :for_select_#{opts.has_short_name ? opts.singlename : opts.table}
             end
 
             def test_crud_calls
@@ -675,7 +778,7 @@ class GenerateNewScaffold < BaseService
             private
 
             def repo
-              #{opts.reponame}Repo.new
+              #{opts.classnames[:repo]}.new
             end
           end
         end
@@ -693,18 +796,18 @@ class GenerateNewScaffold < BaseService
         # rubocop:disable Metrics/ClassLength
         # rubocop:disable Metrics/AbcSize
 
-        module #{opts.applet_module}
-          class Test#{opts.klassname}Interactor < Minitest::Test
+        module #{opts.classnames[:module]}
+          class Test#{opts.classnames[:interactor]} < Minitest::Test
             def test_repo
               repo = interactor.repo
               # repo = interactor.send(:repo)
-              assert repo.is_a?(#{opts.applet_module}::#{opts.reponame}Repo)
+              assert repo.is_a?(#{opts.classnames[:namespaced_repo]})
             end
 
             private
 
             def interactor
-              @interactor ||= #{opts.klassname}Interactor.new(current_user, {}, {}, {})
+              @interactor ||= #{opts.classnames[:interactor]}.new(current_user, {}, {}, {})
             end
           end
         end
@@ -714,22 +817,20 @@ class GenerateNewScaffold < BaseService
     end
 
     def test_route
-      base_route    = "#{opts.applet}/#{opts.program}/"
-      applet_klass  = UtilityFunctions.camelize(opts.applet)
-      program_klass = UtilityFunctions.camelize(opts.program)
+      base_route = "#{opts.applet}/#{opts.program}/"
       <<~RUBY
         # frozen_string_literal: true
 
-        require File.join(File.expand_path('./../../', __FILE__), 'test_helper_for_routes')
+        require File.join(File.expand_path('./../', __dir__), 'test_helper_for_routes')
 
-        class Test#{opts.klassname}Routes < RouteTester
-          def around
-            #{opts.applet_module}::#{opts.klassname}Interactor.any_instance.stubs(:exists?).returns(true)
-            super
-          end
+        class Test#{opts.classnames[:class]}Routes < RouteTester
+
+          INTERACTOR = #{opts.classnames[:namespaced_interactor]}
 
           def test_edit
-            #{applet_klass}::#{program_klass}::#{opts.klassname}::Edit.stub(:call, bland_page) do
+            authorise_pass!
+            ensure_exists!(INTERACTOR)
+            #{opts.classnames[:view_prefix]}::Edit.stub(:call, bland_page) do
               get '#{base_route}#{opts.table}/1/edit', {}, 'rack.session' => { user_id: 1 }
             end
             expect_bland_page
@@ -737,12 +838,15 @@ class GenerateNewScaffold < BaseService
 
           def test_edit_fail
             authorise_fail!
+            ensure_exists!(INTERACTOR)
             get '#{base_route}#{opts.table}/1/edit', {}, 'rack.session' => { user_id: 1 }
             expect_permission_error
           end
 
           def test_show
-            #{applet_klass}::#{program_klass}::#{opts.klassname}::Show.stub(:call, bland_page) do
+            authorise_pass!
+            ensure_exists!(INTERACTOR)
+            #{opts.classnames[:view_prefix]}::Show.stub(:call, bland_page) do
               get '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1 }
             end
             expect_bland_page
@@ -750,40 +854,51 @@ class GenerateNewScaffold < BaseService
 
           def test_show_fail
             authorise_fail!
+            ensure_exists!(INTERACTOR)
             get '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1 }
             refute last_response.ok?
             assert_match(/permission/i, last_response.body)
           end
 
           def test_update
+            authorise_pass!
+            ensure_exists!(INTERACTOR)
             row_vals = Hash.new(1)
-            #{opts.applet_module}::#{opts.klassname}Interactor.any_instance.stubs(:update_#{opts.singlename}).returns(ok_response(instance: row_vals))
+            #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:update_#{opts.singlename}).returns(ok_response(instance: row_vals))
             patch '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
             expect_json_update_grid
           end
 
           def test_update_fail
-            #{opts.applet_module}::#{opts.klassname}Interactor.any_instance.stubs(:update_#{opts.singlename}).returns(bad_response)
-            #{applet_klass}::#{program_klass}::#{opts.klassname}::Edit.stub(:call, bland_page) do
+            authorise_pass!
+            ensure_exists!(INTERACTOR)
+            #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:update_#{opts.singlename}).returns(bad_response)
+            #{opts.classnames[:view_prefix]}::Edit.stub(:call, bland_page) do
               patch '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
             end
             expect_json_replace_dialog(has_error: true)
           end
 
           def test_delete
-            #{opts.applet_module}::#{opts.klassname}Interactor.any_instance.stubs(:delete_#{opts.singlename}).returns(ok_response)
+            authorise_pass!
+            ensure_exists!(INTERACTOR)
+            #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:delete_#{opts.singlename}).returns(ok_response)
             delete '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
             expect_json_delete_from_grid
           end
           #
           # def test_delete_fail
-          #   #{opts.applet_module}::#{opts.klassname}Interactor.any_instance.stubs(:delete_#{opts.singlename}).returns(bad_response)
+          #   authorise_pass!
+          #   ensure_exists!(INTERACTOR)
+          #   #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:delete_#{opts.singlename}).returns(bad_response)
           #   delete '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
           #   expect_bad_redirect
           # end
 
           def test_new
-            #{applet_klass}::#{program_klass}::#{opts.klassname}::New.stub(:call, bland_page) do
+            authorise_pass!
+            ensure_exists!(INTERACTOR)
+            #{opts.classnames[:view_prefix]}::New.stub(:call, bland_page) do
               get  '#{base_route}#{opts.table}/new', {}, 'rack.session' => { user_id: 1 }
             end
             expect_bland_page
@@ -791,34 +906,48 @@ class GenerateNewScaffold < BaseService
 
           def test_new_fail
             authorise_fail!
+            ensure_exists!(INTERACTOR)
             get '#{base_route}#{opts.table}/new', {}, 'rack.session' => { user_id: 1 }
             refute last_response.ok?
             assert_match(/permission/i, last_response.body)
           end
 
           def test_create
-            #{opts.applet_module}::#{opts.klassname}Interactor.any_instance.stubs(:create_#{opts.singlename}).returns(ok_response)
+            authorise_pass!
+            ensure_exists!(INTERACTOR)
+            #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:create_#{opts.singlename}).returns(ok_response)
             post '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
             expect_ok_redirect
           end
 
           def test_create_remotely
-            #{opts.applet_module}::#{opts.klassname}Interactor.any_instance.stubs(:create_#{opts.singlename}).returns(ok_response)
+            authorise_pass!
+            ensure_exists!(INTERACTOR)
+            #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:create_#{opts.singlename}).returns(ok_response)
             post_as_fetch '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
             expect_ok_json_redirect
           end
 
           def test_create_fail
-            #{opts.applet_module}::#{opts.klassname}Interactor.any_instance.stubs(:create_#{opts.singlename}).returns(bad_response)
-            #{applet_klass}::#{program_klass}::#{opts.klassname}::New.stub(:call, bland_page) do
+            authorise_pass!
+            ensure_exists!(INTERACTOR)
+            #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:create_#{opts.singlename}).returns(bad_response)
+            #{opts.classnames[:view_prefix]}::New.stub(:call, bland_page) do
+              post_as_fetch '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
+            end
+            expect_bad_page
+
+            #{opts.classnames[:view_prefix]}::New.stub(:call, bland_page) do
               post '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
             end
             expect_bad_redirect(url: '/#{base_route}#{opts.table}/new')
           end
 
           def test_create_remotely_fail
-            #{opts.applet_module}::#{opts.klassname}Interactor.any_instance.stubs(:create_#{opts.singlename}).returns(bad_response)
-            #{applet_klass}::#{program_klass}::#{opts.klassname}::New.stub(:call, bland_page) do
+            authorise_pass!
+            ensure_exists!(INTERACTOR)
+            #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:create_#{opts.singlename}).returns(bad_response)
+            #{opts.classnames[:view_prefix]}::New.stub(:call, bland_page) do
               post_as_fetch '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
             end
             expect_json_replace_dialog
@@ -852,17 +981,27 @@ class GenerateNewScaffold < BaseService
       fields_to_use.map { |f| "form.add_field :#{f}" }.join(UtilityFunctions.newline_and_spaces(14))
     end
 
+    def needs_id
+      opts.nested_route ? 'parent_id, ' : ''
+    end
+
+    def new_form_url
+      if opts.nested_route
+        "\"/#{opts.applet}/#{opts.program}/#{opts.nested_route}/\#{parent_id}/#{opts.table}\""
+      else
+        "'/#{opts.applet}/#{opts.program}/#{opts.table}'"
+      end
+    end
+
     def new_view
-      applet_klass  = UtilityFunctions.camelize(opts.applet)
-      program_klass = UtilityFunctions.camelize(opts.program)
       <<~RUBY
         # frozen_string_literal: true
 
-        module #{applet_klass}
-          module #{program_klass}
-            module #{opts.klassname}
+        module #{opts.classnames[:applet]}
+          module #{opts.classnames[:program]}
+            module #{opts.classnames[:class]}
               class New
-                def self.call(form_values: nil, form_errors: nil, remote: true) # rubocop:disable Metrics/AbcSize
+                def self.call(#{needs_id}form_values: nil, form_errors: nil, remote: true) # rubocop:disable Metrics/AbcSize
                   ui_rule = UiRules::Compiler.new(:#{opts.singlename}, :new, form_values: form_values)
                   rules   = ui_rule.compile
 
@@ -871,7 +1010,7 @@ class GenerateNewScaffold < BaseService
                     page.form_values form_values
                     page.form_errors form_errors
                     page.form do |form|
-                      form.action '/#{opts.applet}/#{opts.program}/#{opts.table}'
+                      form.action #{new_form_url}
                       form.remote! if remote
                       #{form_fields}
                     end
@@ -887,14 +1026,12 @@ class GenerateNewScaffold < BaseService
     end
 
     def edit_view
-      applet_klass  = UtilityFunctions.camelize(opts.applet)
-      program_klass = UtilityFunctions.camelize(opts.program)
       <<~RUBY
         # frozen_string_literal: true
 
-        module #{applet_klass}
-          module #{program_klass}
-            module #{opts.klassname}
+        module #{opts.classnames[:applet]}
+          module #{opts.classnames[:program]}
+            module #{opts.classnames[:class]}
               class Edit
                 def self.call(id, form_values = nil, form_errors = nil) # rubocop:disable Metrics/AbcSize
                   ui_rule = UiRules::Compiler.new(:#{opts.singlename}, :edit, id: id, form_values: form_values)
@@ -922,14 +1059,12 @@ class GenerateNewScaffold < BaseService
     end
 
     def show_view
-      applet_klass  = UtilityFunctions.camelize(opts.applet)
-      program_klass = UtilityFunctions.camelize(opts.program)
       <<~RUBY
         # frozen_string_literal: true
 
-        module #{applet_klass}
-          module #{program_klass}
-            module #{opts.klassname}
+        module #{opts.classnames[:applet]}
+          module #{opts.classnames[:program]}
+            module #{opts.classnames[:class]}
               class Show
                 def self.call(id)
                   ui_rule = UiRules::Compiler.new(:#{opts.singlename}, :show, id: id)
@@ -957,7 +1092,7 @@ class GenerateNewScaffold < BaseService
     attr_reader :opts
     def initialize(opts)
       @opts = opts
-      @repo = DevelopmentRepo.new
+      @repo = DevelopmentApp::DevelopmentRepo.new
     end
 
     def call
@@ -1111,7 +1246,7 @@ class GenerateNewScaffold < BaseService
         Dir["\#{root_dir}/#{opts.applet}/validations/*.rb"].each { |f| require f }
         Dir["\#{root_dir}/#{opts.applet}/views/**/*.rb"].each { |f| require f }
 
-        module #{opts.applet_module}
+        module #{opts.classnames[:module]}
         end
       RUBY
     end
@@ -1123,36 +1258,48 @@ class GenerateNewScaffold < BaseService
       @opts = opts
     end
 
+    def titleize(str)
+      str.split(' ').map(&:capitalize).join(' ')
+    end
+
     def call
       <<~SQL
-        INSERT INTO functional_areas (functional_area_name) VALUES ('#{opts.applet}');
+        INSERT INTO functional_areas (functional_area_name) VALUES ('#{titleize(opts.applet)}');
 
         INSERT INTO programs (program_name, program_sequence, functional_area_id)
-        VALUES ('#{opts.program}', 1, (SELECT id FROM functional_areas WHERE functional_area_name = '#{opts.applet}'));
+        VALUES ('#{titleize(opts.program_text)}', 1, (SELECT id FROM functional_areas
+                                                      WHERE functional_area_name = '#{titleize(opts.applet)}'));
+
+        INSERT INTO programs_webapps(program_id, webapp) VALUES (
+              (SELECT id FROM programs
+               WHERE program_name = '#{titleize(opts.program_text)}'
+                 AND functional_area_id = (SELECT id FROM functional_areas
+                                           WHERE functional_area_name = '#{titleize(opts.applet)}')),
+               '#{opts.classnames[:roda_class]}');
 
         -- NEW menu item
         /*
         INSERT INTO program_functions (program_id, program_function_name, url, program_function_sequence)
-        VALUES ((SELECT id FROM programs WHERE program_name = '#{opts.program}'
+        VALUES ((SELECT id FROM programs WHERE program_name = '#{titleize(opts.program_text)}'
                  AND functional_area_id = (SELECT id FROM functional_areas
-                                           WHERE functional_area_name = '#{opts.applet}')),
-                 'New #{opts.klassname}', '/#{opts.applet}/#{opts.program}/#{opts.table}/new', 1);
+                                           WHERE functional_area_name = '#{titleize(opts.applet)}')),
+                 'New #{opts.classnames[:class]}', '/#{opts.applet}/#{opts.program}/#{opts.table}/new', 1);
         */
 
         -- LIST menu item
         INSERT INTO program_functions (program_id, program_function_name, url, program_function_sequence)
-        VALUES ((SELECT id FROM programs WHERE program_name = '#{opts.program}'
+        VALUES ((SELECT id FROM programs WHERE program_name = '#{titleize(opts.program_text)}'
                  AND functional_area_id = (SELECT id FROM functional_areas
-                                           WHERE functional_area_name = '#{opts.applet}')),
-                 '#{opts.table.capitalize}', '/list/#{opts.list_name}', 2);
+                                           WHERE functional_area_name = '#{titleize(opts.applet)}')),
+                 '#{opts.table.capitalize}', '/list/#{opts.table}', 2);
 
         -- SEARCH menu item
         /*
         INSERT INTO program_functions (program_id, program_function_name, url, program_function_sequence)
-        VALUES ((SELECT id FROM programs WHERE program_name = '#{opts.program}'
+        VALUES ((SELECT id FROM programs WHERE program_name = '#{titleize(opts.program_text)}'
                  AND functional_area_id = (SELECT id FROM functional_areas
-                                           WHERE functional_area_name = '#{opts.applet}')),
-                 'Search #{opts.table.capitalize}', '/search/#{opts.list_name}', 2);
+                                           WHERE functional_area_name = '#{titleize(opts.applet)}')),
+                 'Search #{opts.table.capitalize}', '/search/#{opts.table}', 2);
         */
       SQL
     end

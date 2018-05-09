@@ -1,0 +1,7 @@
+---
+:dataminer_definition: logged_actions
+:actions:
+- :url: "/development/logging/logged_actions/$:id$"
+  :text: view
+  :icon: fa-eye
+  :title: View

@@ -1,26 +1,20 @@
 # frozen_string_literal: true
 
+ENV['RACK_ENV'] = 'test'
 require 'minitest/autorun'
-require "mocha/mini_test"
+require 'mocha/minitest'
 require 'minitest/stub_any_instance'
 require 'minitest/hooks/test'
 require 'minitest/rg'
 
-require 'crossbeams/layout'
-require 'yaml'
-require 'dry/inflector'
-require 'dry-struct'
-require 'dry-validation'
-require 'sequel'
+require 'bundler'
+Bundler.require(:default, ENV.fetch('RACK_ENV', 'development'))
 
-ENV['RACK_ENV'] = 'test'
 require './config/environment'
 
-module Types
-  include Dry::Types.module
-end
+require './lib/types_for_dry'
 require './lib/crossbeams_responses'
-require './lib/repo_base'
+require './lib/base_repo'
 
 root_dir = File.expand_path('../..', __FILE__)
 
@@ -48,7 +42,7 @@ class MiniTestWithHooks < Minitest::Test
 end
 
 def current_user
-  User.new(
+  DevelopmentApp::User.new(
     id: 1,
     login_name: 'usr_login',
     user_name: 'User Name',

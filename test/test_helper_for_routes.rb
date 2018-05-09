@@ -1,7 +1,7 @@
 ENV['RACK_ENV'] = 'test'
 require 'rack/test'
 require 'minitest/autorun'
-require "mocha/mini_test"
+require 'mocha/minitest'
 require 'minitest/stub_any_instance'
 require 'minitest/hooks/test'
 
@@ -14,7 +14,6 @@ class RouteTester < Minitest::Test
 
   def around
     DB.transaction(rollback: :always, savepoint: true, auto_savepoint: true) do
-      authorise_pass!
       super
     end
   end
@@ -30,7 +29,7 @@ class RouteTester < Minitest::Test
   end
 
   def base_user
-    User.new(
+    DevelopmentApp::User.new(
       id: 1,
       login_name: 'usr_login',
       user_name: 'User Name',
@@ -41,13 +40,19 @@ class RouteTester < Minitest::Test
   end
 
   def authorise_pass!
-    UserRepo.any_instance.stubs(:find).returns(base_user)
+    DevelopmentApp::UserRepo.any_instance.stubs(:find).returns(base_user)
+    SecurityApp::MenuRepo.any_instance.stubs(:functional_area_id_for_name).returns(1)
     SecurityApp::MenuRepo.any_instance.stubs(:authorise?).returns(true)
   end
 
   def authorise_fail!
-    UserRepo.any_instance.stubs(:find).returns(base_user)
+    DevelopmentApp::UserRepo.any_instance.stubs(:find).returns(base_user)
+    SecurityApp::MenuRepo.any_instance.stubs(:functional_area_id_for_name).returns(1)
     SecurityApp::MenuRepo.any_instance.stubs(:authorise?).returns(false)
+  end
+
+  def ensure_exists!(klass)
+    klass.any_instance.stubs(:exists?).returns(true)
   end
 
   def header_location
@@ -120,6 +125,11 @@ class RouteTester < Minitest::Test
     assert last_response.body.include?('FAIL')
   end
 
+  def expect_bad_page(content: 'FAIL')
+    assert last_response.ok?
+    assert_match(/#{content}/, last_response.body)
+  end
+
   def expect_bland_page(content: 'HTML_PAGE')
     assert last_response.ok?
     assert_match(/#{content}/, last_response.body)
@@ -132,5 +142,9 @@ class RouteTester < Minitest::Test
 
   def post_as_fetch(url, params = {}, options = nil)
     post url, params, options.merge('HTTP_X_CUSTOM_REQUEST_TYPE' => 'Y')
+  end
+
+  def get_as_fetch(url, params = {}, options = nil)
+    get url, params, options.merge('HTTP_X_CUSTOM_REQUEST_TYPE' => 'Y')
   end
 end

@@ -1,7 +1,9 @@
+# frozen_string_literal: true
+
 module UiRules
   class ScaffoldsRule < Base
     def generate_rules
-      @this_repo = DevelopmentRepo.new
+      @repo = DevelopmentApp::DevelopmentRepo.new
       make_form_object
       apply_form_values
 
@@ -11,25 +13,26 @@ module UiRules
 
       disable_other
 
-      form_name 'scaffold'.freeze
+      form_name 'scaffold'
     end
 
     def common_fields
       {
-        table: { renderer: :select, options: @this_repo.table_list, prompt: true },
+        table: { renderer: :select, options: @repo.table_list, prompt: true },
         applet: { renderer: :select, options: applets_list },
         other: { force_lowercase: true },
         program: { force_lowercase: true },
         label_field: {},
         short_name: { caption: 'Short name based on table name' },
-        shared_repo_name: { hint: 'Name of an existing or new repo to use to store persistence methods for more than one table.<p>The code will refer to this repo instead of using a name derived from the table.<br> Use CamelCase - <em>"MostAwesome"</em> for <em>"MostAwesoneRepo"</em>.</p>' }
+        shared_repo_name: { hint: 'Name of an existing or new repo to use to store persistence methods for more than one table.<p>The code will refer to this repo instead of using a name derived from the table.<br> Use CamelCase - <em>"MostAwesome"</em> for <em>"MostAwesoneRepo"</em>.</p>' },
+        nested_route_parent: { renderer: :select, options: @repo.table_list, prompt: true }
       }
     end
 
     def make_form_object
       make_new_form_object && return if @mode == :new
 
-      @form_object = @this_repo.find(@options[:id])
+      @form_object = @repo.find(@options[:id])
     end
 
     def make_new_form_object
@@ -39,7 +42,8 @@ module UiRules
                                     program: nil,
                                     label_field: nil,
                                     short_name: nil,
-                                    short_repo_name: nil)
+                                    short_repo_name: nil,
+                                    nested_route_parent: nil)
     end
 
     private

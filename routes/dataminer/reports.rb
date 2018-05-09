@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
+# rubocop:disable Metrics/BlockLength
+
 class Dataminer < Roda
   route 'reports', 'dataminer' do |r|
-    interactor = DataminerInteractor.new(current_user, {}, {}, {})
+    interactor = DataminerInteractor.new(current_user, {}, { route_url: request.path }, {})
 
     r.on 'iframe' do
       if flash[:iframe_url].nil?
@@ -28,18 +30,18 @@ class Dataminer < Roda
       r.post 'xls' do
         page = interactor.create_spreadsheet(id, params)
         response.headers['content_type'] = 'application/vnd.ms-excel'
-        response.headers['Content-Disposition'] = "attachment; filename=\"#{page.report.caption.strip.gsub(/[\/:*?"\\<>\|\r\n]/i, '-') + '.xls'}\""
+        response.headers['Content-Disposition'] = "attachment; filename=\"#{page.report.caption.strip.gsub(%r{[/:*?"\\<>\|\r\n]}i, '-') + '.xls'}\""
         # NOTE: could this use streaming to start downloading quicker?
         response.write(page.excel_file.to_stream.read)
       rescue Sequel::DatabaseError => e
-        erb(<<-HTML)
+        view(inline: <<-HTML)
         <p style='color:red;'>There is a problem with the SQL definition of this report:</p>
-        <p>Report: <em>#{@rpt.caption}</em></p>The error message is:
+        <p>Report: <em>#{@page.nil? ? id : @page.report.caption}</em></p>The error message is:
         <pre>#{e.message}</pre>
         <button class="pure-button" onclick="crossbeamsUtils.toggleVisibility('sql_code', this);return false">
           <i class="fa fa-info"></i> Toggle SQL
         </button>
-        <pre id="sql_code" style="display:none;"><%= sql_to_highlight(@rpt.runnable_sql) %></pre>
+        <pre id="sql_code" style="display:none;">#{@page.nil? ? 'Unknown' : '<%= sql_to_highlight(@page.report.runnable_sql) %>'}</pre>
         HTML
       end
 
@@ -55,12 +57,12 @@ class Dataminer < Roda
       rescue Sequel::DatabaseError => e
         view(inline: <<-HTML)
         <p style='color:red;'>There is a problem with the SQL definition of this report:</p>
-        <p>Report: <em>#{@rpt.caption}</em></p>The error message is:
+        <p>Report: <em>#{@page.nil? ? id : @page.report.caption}</em></p>The error message is:
         <pre>#{e.message}</pre>
         <button class="pure-button" onclick="crossbeamsUtils.toggleVisibility('sql_code', this);return false">
           <i class="fa fa-info"></i> Toggle SQL
         </button>
-        <pre id="sql_code" style="display:none;"><%= sql_to_highlight(@rpt.runnable_sql) %></pre>
+        <pre id="sql_code" style="display:none;">#{@page.nil? ? 'Unknown' : '<%= sql_to_highlight(@page.report.runnable_sql) %>'}</pre>
         HTML
       end
     end
@@ -71,8 +73,10 @@ class Dataminer < Roda
     end
 
     r.on 'grid' do
-      response['Content-Type'] = 'application/json'
+      return_json_response
       interactor.report_list_grid
     end
   end
 end
+
+# rubocop:enable Metrics/BlockLength

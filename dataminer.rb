@@ -3,31 +3,13 @@
 # rubocop:disable Metrics/ClassLength
 # rubocop:disable Metrics/BlockLength
 
-require 'roda'
-require 'rodauth'
-require 'crossbeams/dataminer'
-# require 'crossbeams/dataminer_interface'
-require 'crossbeams/layout'
-require 'roda/data_grid'
-require 'yaml'
+require 'bundler'
+Bundler.require(:default, ENV.fetch('RACK_ENV', 'development'))
+
 require 'pstore'
-require 'base64'
-require 'dry/inflector'
-require 'dry-struct'
-require 'dry-validation'
-require 'net/http'
-require 'uri'
-# require './lib/db_connections'
-require 'pry' if ENV.fetch('RACK_ENV') == 'development'
-
-#### require './lib/db_connections'
-
-module Types
-  include Dry::Types.module
-end
-
+require './lib/types_for_dry'
 require './lib/crossbeams_responses'
-require './lib/repo_base'
+require './lib/base_repo'
 require './lib/base_interactor'
 require './lib/base_service'
 require './lib/local_store' # Will only work for processes running from one dir.
@@ -37,7 +19,7 @@ require './lib/dataminer_connections'
 Dir['./helpers/**/*.rb'].each { |f| require f }
 Dir['./lib/applets/*.rb'].each { |f| require f }
 
-ENV['ROOT'] = File.dirname(__FILE__) # Could use Roda.expand_path('.') inside Roda app.
+ENV['ROOT'] = File.dirname(__FILE__)
 ENV['VERSION'] = File.read('VERSION')
 # ENV['REPORTS_LOCATION'] ||= File.expand_path('../../../roda_frame/reports', __FILE__)
 # ENV['REPORTS_LOCATION'] ||= File.expand_path('../../label_designer/grid_definitions/dataminer_queries', __FILE__)
@@ -45,13 +27,16 @@ ENV['GRID_QUERIES_LOCATION'] ||= File.expand_path('../../label_designer/grid_def
 
 DM_CONNECTIONS = DataminerConnections.new
 
+module Crossbeams
+  class AuthorizationError < StandardError
+  end
+end
+
 class Dataminer < Roda
   include CommonHelpers
+  include ErrorHelpers
   include MenuHelpers
   include DataminerHelpers
-
-  # Store the name of this class for use in scaffold generating.
-  ENV['RODA_KLASS'] = to_s
 
   use Rack::Session::Cookie, secret: 'some_not_so_nice_long_random_string_DSKJH4378EYR7EGKUFH', key: '_dataminer_session'
   use Rack::MethodOverride # Use with all_verbs plugin to allow 'r.delete' etc.
@@ -71,14 +56,6 @@ class Dataminer < Roda
   plugin :public # serve assets from public folder.
   plugin :multi_route
   plugin :content_for, append: true
-
-  # use Crossbeams::DataminerInterface::App, url_prefix: 'dataminer/',
-  #                                          dm_reports_location: File.expand_path('../../../roda_frame/reports', __FILE__),
-  #                                          # dm_grid_queries_location: File.expand_path('../../framework/grid_definitions/dataminer_queries', __FILE__),
-  #                                          dm_grid_queries_location: File.expand_path('../../label_designer/grid_definitions/dataminer_queries', __FILE__),
-  #                                          dm_js_location: 'js',
-  #                                          dm_css_location: 'css',
-  #                                          db_connection: DB
   plugin :symbolized_params    # - automatically converts all keys of params to symbols.
   plugin :flash
   plugin :csrf, raise: true, skip_if: ->(_) { ENV['RACK_ENV'] == 'test' } # , :skip => ['POST:/report_error'] # FIXME: Remove the +raise+ param when going live!
@@ -89,23 +66,24 @@ class Dataminer < Roda
     logout_route 'a_dummy_route' # Override 'logout' route so that we have control over it.
     # logout_notice_flash 'Logged out'
     session_key :user_id
-    login_param 'login_name' # 'user_name'
+    login_param 'login_name'
     login_label 'Login name'
-    login_column :login_name # :user_name
-    accounts_table :users
-    account_password_hash_column :password_hash # :hashed_password (This is old base64 version)
-    # require_bcrypt? false
-    # password_match? do |password| # Use legacy password hashing. Maybe change this to modern bcrypt using extra new pwd field?
-    #   account[:hashed_password] == Base64.encode64(password)
-    # end
-    # title_instance_variable :@title
-    # if DEMO_MODE
-    #   before_change_password{r.halt(404)}
-    # end
+    login_column :login_name
+    accounts_table :vw_active_users # Only active users can login.
+    account_password_hash_column :password_hash
+  end
+  unless ENV['RACK_ENV'] == 'development' && ENV['NO_ERR_HANDLE']
+    plugin :error_handler do |e|
+      show_error(e, request.has_header?('HTTP_X_CUSTOM_REQUEST_TYPE'), @cbr_json_response)
+      # = if prod and unexpected exception type, just display "something whent wrong" and log
+      # = use an exception library & email...
+    end
   end
   Dir['./routes/*.rb'].each { |f| require f }
 
   route do |r|
+    initialize_route_instance_vars
+
     r.assets unless ENV['RACK_ENV'] == 'production'
     r.public
 

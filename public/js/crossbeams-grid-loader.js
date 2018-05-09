@@ -194,6 +194,10 @@ const crossbeamsGridEvents = {
               if (data.flash.error) {
                 if (data.exception) {
                   Jackbox.error(data.flash.error, { time: 20 });
+                  if (data.backtrace) {
+                    console.log('==Backend Backtrace==');
+                    console.info(data.backtrace.join('\n'));
+                  }
                 } else {
                   Jackbox.error(data.flash.error);
                 }
@@ -1008,11 +1012,10 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
       gridOptions = {
         context: { domGridId: gridId },
         columnDefs: null,
-        rowDefs: null,
+        rowData: null,
         enableColResize: true,
         enableSorting: true,
         enableFilter: true,
-        suppressScrollLag: true, // TODO: remove with version 13...
         enableRangeSelection: true,
         enableStatusBar: true,
         suppressAggFuncInHeader: true,
@@ -1048,11 +1051,10 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
       gridOptions = {
         context: { domGridId: gridId },
         // columnDefs: null,
-        rowDefs: null,
+        rowData: null,
         enableColResize: true,
         enableSorting: true,
         enableFilter: true,
-        suppressScrollLag: true,
         rowSelection: 'single',
         enableRangeSelection: true,
         enableStatusBar: true,
@@ -1217,6 +1219,10 @@ $(() => {
                     if (data.flash.error) {
                       if (data.exception) {
                         Jackbox.error(data.flash.error, { time: 20 });
+                        if (data.backtrace) {
+                          console.log('==Backend Backtrace==');
+                          console.info(data.backtrace.join('\n'));
+                        }
                       } else {
                         Jackbox.error(data.flash.error);
                       }
