@@ -7,6 +7,8 @@ and this project adheres roughly to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 ### Added
+- User can save a prepared report (report saved with parameter selection).
+- Prepared reports can be run, exported as Excel doc or used as a web query link in spreadsheets.
 ### Changed
 ### Fixed
 

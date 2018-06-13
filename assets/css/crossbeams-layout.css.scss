@@ -100,7 +100,7 @@ section.crossbeams_layout {
         width: 150px;
     }
     .full-width-grid {
-         margin-left: 100px; 
+        margin-left: 100px;
         padding-top: 35px;
         box-sizing: border-box;
         display: block;
@@ -262,9 +262,18 @@ form.rodauth div.form-group {
 }
 
 /* .crossbeams-form input, .crossbeams-form textarea, .crossbeams-form select { */
-.crossbeams-form .cbl-input, .crossbeams-form .multi-wrapper, .rodauth .col-sm-10 {
+.crossbeams-form .cbl-input, .crossbeams-form .cbl-copy-wrapper, .crossbeams-form .multi-wrapper, .rodauth .col-sm-10 {
   order: 2;
   flex: 1 1 auto;
+}
+.crossbeams-form .cbl-copy-wrapper {
+  display: flex;
+}
+.crossbeams-form .cbl-clipcopy {
+  order: 3;
+}
+.crossbeams-form .cbl-clipcopy i {
+  color: #107FB7;
 }
 
 .crossbeams-form input[type="checkbox"], .crossbeams-form input[type="radio"] {
@@ -288,18 +297,40 @@ form.rodauth div.form-group {
   background-color: #fee;
 }
 
+.crossbeams-info-note {
+  margin-top: 0.5em;
+  padding: 0.3em;
+  border: thin solid blue;
+  color: #fff;
+  background-color: #0288D1;
+}
+
+.crossbeams-success-note {
+  margin-top: 0.5em;
+  padding: 0.3em;
+  border: thin solid green;
+  color: #fff;
+  background-color: #4CAF50;
+}
+
 .crossbeams-warning-note {
+  margin-top: 0.5em;
   padding: 0.2em;
-  border: thin solid brown;
-  color: brown;
+  border: thin solid olive;
+  color: white;
   background-color: #FFC107;
 }
 
 .crossbeams-error-note {
+  margin-top: 0.5em;
   padding: 0.2em;
   border: thin solid brown;
   color: brown;
   background-color: #fee;
+}
+
+.crossbeams-success-note p, .crossbeams-info-note p, .crossbeams-warning-note p, .crossbeams-error-note p {
+  margin: 0.2em;
 }
 
 /* label state styles - relies on label placed after input in form...*/
@@ -517,6 +548,76 @@ tr.roweven {
     right: 1em;
   }
 }
+
+/* -------------------------------------------------------------------------- *\
+ * Styles for DIFF display
+ * -------------------------------------------------------------------------- */
+.diff {
+  overflow: auto;
+}
+.diff ul {
+  background: #fff;
+  overflow: auto;
+  /* font-size: 13px; */
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: table;
+  width: 100%;
+}
+.diff del, .diff ins {
+  display: block;
+  text-decoration: none;
+}
+.diff li {
+  padding: 0;
+  display: table-row;
+  margin:  0;
+  height: 1em;
+}
+.diff li.ins {
+  /* background: #dfd; */
+  background: #deeeff;
+  /* color: #080; */
+}
+.diff li.del {
+  /* background: #fee; */
+  background: #deeeff;
+  /* color: #b00; */
+}
+.diff li:hover {
+  background: #ffc;
+}
+.diff del, .diff ins, .diff span {
+  white-space: pre;
+  font-family: courier;
+}
+.diff del, .diff ins {
+  border: 1px solid #74b0f0;
+}
+.diff del strong {
+  font-weight: normal;
+  /* background: #fcc; */
+  background: #8ac2ff;
+}
+.diff ins strong {
+  font-weight: normal;
+  /* background: #9f9; */
+  background: #8ac2ff;
+}
+.diff li.diff-comment  {
+  display: none;
+}
+.diff li.diff-block-info  {
+  background: none repeat scroll 0 0 gray;
+}
+.cbl-diff-container {
+  padding: 0.25em;
+}
+.cbl-diff-caption {
+  font-weight: bold;
+}
+
 /* RESPONSIVE */
 @media (max-width: 48em) {
   .crossbeams-row {
@@ -525,6 +626,7 @@ tr.roweven {
 }
 @media (max-width: 600px) {
   .cbl-input,
+  .cbl-copy-wrapper,
   .multi-wrapper,
   /* input, */
   select{width: 100%;}

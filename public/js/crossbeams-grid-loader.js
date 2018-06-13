@@ -177,9 +177,7 @@ const crossbeamsGridEvents = {
                 document.dispatchEvent(gridEvent);
               });
               const sortable = Array.from(dlgContent.getElementsByTagName('input')).filter(a => a.dataset && a.dataset.sortablePrefix);
-              if (sortable.length > 0) {
-                crossbeamsUtils.makeListSortable(sortable[0].dataset.sortablePrefix);
-              }
+              sortable.forEach((elem) => crossbeamsUtils.makeListSortable(elem.dataset.sortablePrefix, elem.dataset.sortableGroup))
             } else {
               console.log('Not sure what to do with this:', data);
             }
@@ -538,6 +536,9 @@ const crossbeamsGridFormatters = {
     // If items are hidden, the last item(s) could be separators.
     // Remove them here.
     items = _.dropRightWhile(items, ['value', '---']);
+    if (items.length === 0) {
+      return '';
+    }
     return `<button class='grid-context-menu' data-dom-grid-id='${params.context.domGridId}' data-row='${JSON.stringify(items)}'>&nbsp;<i class="fa fa-chevron-right blue"></i>&nbsp;</button>`;
   },
 

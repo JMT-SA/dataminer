@@ -33,4 +33,14 @@ module Types
       elements
     end
   end
+
+  # Turns a comma separated string of integers into an array.
+  # Values are translated to Integers via ruby, this will throw an exception if it is invalid
+  # Non-integers pass through to be handled by the dry-validation schema.
+  ArrayFromString = Types::String.constructor do |str|
+    array = str == '' ? [] : str.split(',')
+    array.map { |val| Integer(val) }
+  rescue StandardError
+    str
+  end
 end

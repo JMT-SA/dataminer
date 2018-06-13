@@ -36,6 +36,16 @@ module CommonHelpers
     end
   end
 
+  def show_page_or_update_dialog(route, res, &block)
+    if fetch?(route)
+      content = show_partial(&block)
+      update_dialog_content(content: content, notice: res.message)
+    else
+      flash[:notice] = res.message
+      show_page(&block)
+    end
+  end
+
   # Selection from a multiselect grid.
   # Returns an array of values.
   def multiselect_grid_choices(params, treat_as_integers: true)
@@ -112,13 +122,6 @@ module CommonHelpers
     !authorised?(programs, sought_permission)
   end
 
-  def can_do_dataminer_admin?
-    # TODO: what decides that user can do admin? security role on dm program?
-    # program + user -> program_users -> security_group -> security_permissions
-    current_user && authorised?(:data_miner, :admin)
-    # current_user # && current_user[:department_name] == 'IT'
-  end
-
   def redirect_to_last_grid(route)
     if fetch?(route)
       redirect_via_json(session[:last_grid_url])
@@ -139,19 +142,22 @@ module CommonHelpers
     { loadNewUrl: url }.to_json
   end
 
+  def make_id_correct_type(id_in)
+    if id_in.is_a?(String)
+      id_in.scan(/\D/).empty? ? id_in.to_i : id_in
+    else
+      id_in
+    end
+  end
+
   def update_grid_row(id, changes:, notice: nil)
-    res = { updateGridInPlace: { id: id.to_i, changes: changes } }
+    res = { updateGridInPlace: { id: make_id_correct_type(id), changes: changes } }
     res[:flash] = { notice: notice } if notice
     res.to_json
   end
 
-  def delete_grid_row(id_in, notice: nil)
-    id = if id_in.is_a?(String)
-           id_in.scan(/\D/).empty? ? id_in.to_i : id_in
-         else
-           id_in
-         end
-    res = { removeGridRowInPlace: { id: id } }
+  def delete_grid_row(id, notice: nil)
+    res = { removeGridRowInPlace: { id: make_id_correct_type(id) } }
     res[:flash] = { notice: notice } if notice
     res.to_json
   end
@@ -220,5 +226,10 @@ module CommonHelpers
   def stashed_page
     store = LocalStore.new(current_user.id)
     store.read_once(:stashed_page)
+  end
+
+  def webquery_url_for(report_id)
+    port = request.port == '80' || request.port.nil? ? '' : ":#{request.port}"
+    "http://#{request.host}#{port}/webquery/#{report_id}"
   end
 end

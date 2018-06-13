@@ -4,7 +4,7 @@
 
 class Dataminer < Roda
   route 'reports', 'dataminer' do |r|
-    interactor = DataminerInteractor.new(current_user, {}, { route_url: request.path }, {})
+    interactor = DataminerApp::DataminerInteractor.new(current_user, {}, { route_url: request.path }, {})
 
     r.on 'iframe' do
       if flash[:iframe_url].nil?
@@ -74,7 +74,11 @@ class Dataminer < Roda
 
     r.on 'grid' do
       return_json_response
-      interactor.report_list_grid
+      begin
+        interactor.report_list_grid
+      rescue StandardError => e
+        show_json_exception(e)
+      end
     end
   end
 end

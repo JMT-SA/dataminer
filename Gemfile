@@ -17,7 +17,7 @@ gem 'sass'
 gem 'sequel'
 gem 'sequel_postgresql_triggers'
 gem 'tilt'
-# gem 'tiny_tds' -- Required if dataminer has to run MSSqlServer reports.
+gem 'tiny_tds' # -- Required if dataminer has to run MSSqlServer reports.
 gem 'yard'
 
 gem 'crossbeams-dataminer', git: 'https://github.com/NoSoft-SA/crossbeams-dataminer.git'
