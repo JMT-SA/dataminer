@@ -17,12 +17,48 @@ class Dataminer < Roda
       end
 
       r.on 'edit' do   # EDIT
-        raise Crossbeams::AuthorizationError unless authorised?('masterfiles', 'edit')
+        check_auth!('masterfiles', 'edit')
         show_partial { Development::Masterfiles::User::Edit.call(id) }
+      end
+      r.on 'details' do
+        r.get do
+          show_partial { Development::Masterfiles::User::Details.call(id) }
+        end
+        r.patch do
+          # User updates own password
+          res = interactor.change_user_password(id, params[:user])
+          if res.success
+            show_json_notice res.message
+          else
+            re_show_form(r, res, url: "/development/masterfiles/users/#{id}/details") do
+              Development::Masterfiles::User::Details.call(id,
+                                                           form_values: {}, # Do not re-show password values...
+                                                           form_errors: res.errors)
+            end
+          end
+        end
+      end
+      r.on 'change_password' do
+        r.get do
+          check_auth!('masterfiles', 'edit')
+          show_partial { Development::Masterfiles::User::ChangePassword.call(id) }
+        end
+        r.patch do
+          res = interactor.set_user_password(id, params[:user])
+          if res.success
+            show_json_notice res.message
+          else
+            re_show_form(r, res, url: "/development/masterfiles/users/#{id}/change_password") do
+              Development::Masterfiles::User::ChangePassword.call(id,
+                                                                  form_values: {}, # Do not re-show password values...
+                                                                  form_errors: res.errors)
+            end
+          end
+        end
       end
       r.is do
         r.get do       # SHOW
-          raise Crossbeams::AuthorizationError unless authorised?('masterfiles', 'read')
+          check_auth!('masterfiles', 'read')
           show_partial { Development::Masterfiles::User::Show.call(id) }
         end
         r.patch do     # UPDATE
@@ -43,7 +79,7 @@ class Dataminer < Roda
         end
         r.delete do    # DELETE
           return_json_response
-          raise Crossbeams::AuthorizationError unless authorised?('masterfiles', 'delete')
+          check_auth!('masterfiles', 'delete')
           res = interactor.delete_user(id)
           delete_grid_row(id, notice: res.message)
         end
@@ -52,7 +88,7 @@ class Dataminer < Roda
     r.on 'users' do
       interactor = DevelopmentApp::UserInteractor.new(current_user, {}, { route_url: request.path }, {})
       r.on 'new' do    # NEW
-        raise Crossbeams::AuthorizationError unless authorised?('masterfiles', 'new')
+        check_auth!('masterfiles', 'new')
         show_partial_or_page(r) { Development::Masterfiles::User::New.call(remote: fetch?(r)) }
       end
       r.post do        # CREATE

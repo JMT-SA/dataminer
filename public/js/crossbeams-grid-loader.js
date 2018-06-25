@@ -917,6 +917,13 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
           if (col[attr] === 'crossbeamsGridFormatters.hrefPromptFormatter') {
             newCol[attr] = crossbeamsGridFormatters.hrefPromptFormatter;
           }
+        } else if (attr === 'valueFormatter') {
+          if (col[attr] === 'crossbeamsGridFormatters.numberWithCommas2') {
+            newCol[attr] = crossbeamsGridFormatters.numberWithCommas2;
+          }
+          if (col[attr] === 'crossbeamsGridFormatters.numberWithCommas4') {
+            newCol[attr] = crossbeamsGridFormatters.numberWithCommas4;
+          }
         } else if (attr === 'cellEditor') {
           if (col[attr] === 'NumericCellEditor') {
             newCol[attr] = NumericCellEditor;
@@ -959,6 +966,11 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
         httpResult = JSON.parse(httpRequest.responseText);
         if (httpResult.exception) {
           crossbeamsUtils.alert({ prompt: httpResult.flash.error, type: 'error' });
+          if (httpResult.backtrace) {
+            console.log('==Backend Backtrace==');
+            console.info(httpResult.backtrace.join('\n'));
+          }
+          return null;
         }
         // var midLevelColumnDefs, detailColumnDefs;
         if (httpResult.nestedColumnDefs) {
@@ -984,6 +996,7 @@ Level3PanelCellRenderer.prototype.consumeMouseWheelOnDetailGrid = function consu
           crossbeamsGridEvents.makeColumnScrollList(gridOptions.context.domGridId, newColDefs);
         }
       }
+      return null;
     };
     httpRequest.send();
   };
@@ -1112,7 +1125,11 @@ $(() => {
     const itemSet = {};
     if (subs) {
       subs.forEach((sub) => {
-        itemSet[sub.key] = sub;
+        if (sub.value && sub.value === '---') {
+          itemSet[sub.key] = '---';
+        } else {
+          itemSet[sub.key] = sub;
+        }
         itemSet[sub.key].domGridId = gridId;
       });
     }

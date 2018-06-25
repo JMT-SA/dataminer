@@ -15,9 +15,9 @@ GIT
 
 GIT
   remote: https://github.com/NoSoft-SA/roda-data_grid.git
-  revision: f15f427608310f631faeee6d390423f0e0b4cfae
+  revision: 5806d34a45d21e6d57ee84a8d910f9076322944a
   specs:
-    roda-data_grid (0.1.3)
+    roda-data_grid (0.1.4)
       axlsx
       crossbeams-dataminer
       crossbeams-layout
@@ -109,7 +109,7 @@ GEM
     net-scp (1.2.1)
       net-ssh (>= 2.6.5)
     net-ssh (4.2.0)
-    nokogiri (1.8.2)
+    nokogiri (1.8.3)
       mini_portile2 (~> 2.3.0)
     parallel (1.12.1)
     parser (2.4.0.2)
@@ -214,6 +214,7 @@ DEPENDENCIES
   roda-data_grid!
   roda-symbolized_params
   rodauth
+  rouge
   rubocop
   sass
   sequel

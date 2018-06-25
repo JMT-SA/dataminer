@@ -228,12 +228,8 @@ class GenerateNewScaffold < BaseService
               @repo ||= #{opts.classnames[:repo]}.new
             end
 
-            def #{opts.singlename}(cached = true)
-              if cached
-                @#{opts.singlename} ||= repo.find_#{opts.singlename}(@id)
-              else
-                @#{opts.singlename} = repo.find_#{opts.singlename}(@id)
-              end
+            def #{opts.singlename}(id)
+              repo.find_#{opts.singlename}(id)
             end
 
             def validate_#{opts.singlename}_params(params)
@@ -243,31 +239,32 @@ class GenerateNewScaffold < BaseService
             def create_#{opts.singlename}(#{needs_id}params)#{add_parent_to_params}
               res = validate_#{opts.singlename}_params(params)
               return validation_failed_response(res) unless res.messages.empty?
+              id = nil
               DB.transaction do
-                @id = repo.create_#{opts.singlename}(res)
+                id = repo.create_#{opts.singlename}(res)
                 log_transaction
               end
-              success_response("Created #{opts.classnames[:text_name].downcase} \#{#{opts.singlename}.#{opts.label_field}}",
-                               #{opts.singlename})
+              instance = #{opts.singlename}(id)
+              success_response("Created #{opts.classnames[:text_name].downcase} \#{instance.#{opts.label_field}}",
+                               instance)
             rescue Sequel::UniqueConstraintViolation
               validation_failed_response(OpenStruct.new(messages: { #{opts.label_field}: ['This #{opts.classnames[:text_name].downcase} already exists'] }))
             end
 
             def update_#{opts.singlename}(id, params)
-              @id = id
               res = validate_#{opts.singlename}_params(params)
               return validation_failed_response(res) unless res.messages.empty?
               DB.transaction do
                 repo.update_#{opts.singlename}(id, res)
                 log_transaction
               end
-              success_response("Updated #{opts.classnames[:text_name].downcase} \#{#{opts.singlename}.#{opts.label_field}}",
-                               #{opts.singlename}(false))
+              instance = #{opts.singlename}(id)
+              success_response("Updated #{opts.classnames[:text_name].downcase} \#{instance.#{opts.label_field}}",
+                               instance)
             end
 
             def delete_#{opts.singlename}(id)
-              @id = id
-              name = #{opts.singlename}.#{opts.label_field}
+              name = #{opts.singlename}(id).#{opts.label_field}
               DB.transaction do
                 repo.delete_#{opts.singlename}(id)
                 log_transaction
@@ -503,20 +500,19 @@ class GenerateNewScaffold < BaseService
               end
 
               r.on 'edit' do   # EDIT
-                raise Crossbeams::AuthorizationError unless authorised?('#{opts.program_text}', 'edit')
+                check_auth!('#{opts.program_text}', 'edit')
                 show_partial { #{opts.classnames[:view_prefix]}::Edit.call(id) }
               end
               r.is do
                 r.get do       # SHOW
-                  raise Crossbeams::AuthorizationError unless authorised?('#{opts.program_text}', 'read')
+                  check_auth!('#{opts.program_text}', 'read')
                   show_partial { #{opts.classnames[:view_prefix]}::Show.call(id) }
                 end
                 r.patch do     # UPDATE
                   return_json_response
                   res = interactor.update_#{opts.singlename}(id, params[:#{opts.singlename}])
                   if res.success
-                    update_grid_row(id, changes: { #{grid_refresh_fields} },
-                                        notice: res.message)
+                    #{update_grid_row.gsub("\n", "\n            ").sub(/            \Z/, '').sub(/\n\Z/, '')}
                   else
                     content = show_partial { #{opts.classnames[:view_prefix]}::Edit.call(id, params[:#{opts.singlename}], res.errors) }
                     update_dialog_content(content: content, error: res.message)
@@ -524,7 +520,7 @@ class GenerateNewScaffold < BaseService
                 end
                 r.delete do    # DELETE
                   return_json_response
-                  raise Crossbeams::AuthorizationError unless authorised?('#{opts.program_text}', 'delete')
+                  check_auth!('#{opts.program_text}', 'delete')
                   res = interactor.delete_#{opts.singlename}(id)
                   delete_grid_row(id, notice: res.message)
                 end
@@ -553,7 +549,7 @@ class GenerateNewScaffold < BaseService
         r.on '#{opts.table}' do
           interactor = #{opts.classnames[:namespaced_interactor]}.new(current_user, {}, { route_url: request.path }, {})
           r.on 'new' do    # NEW
-            raise Crossbeams::AuthorizationError unless authorised?('#{opts.program_text}', 'new')
+            check_auth!('#{opts.program_text}', 'new')
             show_partial_or_page(r) { #{opts.classnames[:view_prefix]}::New.call(remote: fetch?(r)) }
           end
           r.post do        # CREATE
@@ -579,7 +575,7 @@ class GenerateNewScaffold < BaseService
           r.on '#{opts.table}' do
             interactor = #{opts.classnames[:namespaced_interactor]}.new(current_user, {}, { route_url: request.path }, {})
             r.on 'new' do    # NEW
-              raise Crossbeams::AuthorizationError unless authorised?('#{opts.program_text}', 'new')
+              check_auth!('#{opts.program_text}', 'new')
               show_partial_or_page(r) { #{opts.classnames[:view_prefix]}::New.call(id, remote: fetch?(r)) }
             end
             r.post do        # CREATE
@@ -598,6 +594,31 @@ class GenerateNewScaffold < BaseService
             end
           end
         end
+      RUBY
+    end
+
+    def update_grid_row
+      if opts.table_meta.columns_without(%i[id created_at updated_at active]).length > 3
+        update_grid_row_many
+      else
+        update_grid_row_few
+      end
+    end
+
+    def update_grid_row_many
+      row_keys = opts.table_meta.columns_without(%i[id created_at updated_at active]).map(&:to_s).join("\n  ")
+      <<~RUBY
+        row_keys = %i[
+          #{row_keys}
+        ]
+        update_grid_row(id, changes: select_attributes(res.instance, row_keys), notice: res.message)
+      RUBY
+    end
+
+    def update_grid_row_few
+      <<~RUBY
+        update_grid_row(id, changes: { #{grid_refresh_fields} },
+                            notice: res.message)
       RUBY
     end
 
