@@ -50,7 +50,7 @@ class Dataminer < Roda
                      run_search_url: '/search/%s/run',
                      run_to_excel_url: '/search/%s/xls'
   plugin :all_verbs
-  plugin :render
+  plugin :render, template_opts: { default_encoding: 'UTF-8' }
   plugin :partials
   plugin :assets, css: 'style.scss', precompiled: 'prestyle.css', sri: nil # SRI: nil because integrity calculated incorrectly....
   plugin :public # serve assets from public folder.
