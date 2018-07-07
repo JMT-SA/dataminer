@@ -58,6 +58,7 @@ class DataminerConnection
     @db = if validation[:connection_string].nil?
             validation[:connection]
           else
+            # Sequel.connect(validation[:connection_string], after_connect: ->(_) { p 'CONNECTED' })
             Sequel.connect(validation[:connection_string])
           end
     # Ensure connections are not lost over time.
