@@ -196,16 +196,20 @@ module CommonHelpers
     res.to_json
   end
 
-  def json_replace_select_options(dom_id, options_array, message = nil)
-    json_actions(OpenStruct.new(type: :replace_select_options, dom_id: dom_id, options_array: options_array), message)
+  def json_replace_select_options(dom_id, options_array, message = nil, keep_dialog_open: false)
+    json_actions(OpenStruct.new(type: :replace_select_options, dom_id: dom_id, options_array: options_array), message, keep_dialog_open)
   end
 
-  def json_replace_multi_options(dom_id, options_array, message = nil)
-    json_actions(OpenStruct.new(type: :replace_multi_options, dom_id: dom_id, options_array: options_array), message)
+  def json_replace_multi_options(dom_id, options_array, message = nil, keep_dialog_open: false)
+    json_actions(OpenStruct.new(type: :replace_multi_options, dom_id: dom_id, options_array: options_array), message, keep_dialog_open)
   end
 
-  def json_replace_input_value(dom_id, value, message = nil)
-    json_actions(OpenStruct.new(type: :replace_input_value, dom_id: dom_id, value: value), message)
+  def json_replace_input_value(dom_id, value, message = nil, keep_dialog_open: false)
+    json_actions(OpenStruct.new(type: :replace_input_value, dom_id: dom_id, value: value), message, keep_dialog_open)
+  end
+
+  def json_replace_list_items(dom_id, items, message = nil, keep_dialog_open: false)
+    json_actions(OpenStruct.new(type: :replace_list_items, dom_id: dom_id, items: Array(items)), message, keep_dialog_open)
   end
 
   # This could be built in a class and receive send messages....
@@ -213,6 +217,7 @@ module CommonHelpers
     return action_replace_input_value(action) if action.type == :replace_input_value
     return action_replace_select_options(action) if action.type == :replace_select_options
     return action_replace_multi_options(action) if action.type == :replace_multi_options
+    return action_replace_list_items(action) if action.type == :replace_list_items
   end
 
   def action_replace_select_options(action)
@@ -227,9 +232,14 @@ module CommonHelpers
     { replace_input_value: { id: action.dom_id, value: action.value } }
   end
 
-  def json_actions(actions, message = nil)
+  def action_replace_list_items(action)
+    { replace_list_items: { id: action.dom_id, items: action.items } }
+  end
+
+  def json_actions(actions, message = nil, keep_dialog_open: false)
     res = { actions: Array(actions).map { |a| build_json_action(a) } }
     res[:flash] = { notice: message } unless message.nil?
+    res[:keep_dialog_open] = true if keep_dialog_open
     res.to_json
   end
 
