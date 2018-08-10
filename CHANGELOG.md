@@ -7,10 +7,10 @@ and this project adheres roughly to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 ### Added
-- All icon usage changed from using FontAwesome to using embedded SVG icons.
 - User can save a prepared report (report saved with parameter selection).
 - Prepared reports can be run, exported as Excel doc or used as a web query link in spreadsheets.
 ### Changed
+- All icon usage changed from using FontAwesome to using embedded SVG icons.
 ### Fixed
 
 ## [0.1.3] - 2018-04-03
