@@ -37,7 +37,7 @@
       :items:
       - :url: /security/functional_areas/programs/$:functional_area_id$/new
         :text: new program
-        :icon: add-circle
+        :icon: add-solid
         :popup: true
       - :url: /security/functional_areas/programs/$:program_id$/edit
         :text: edit program
@@ -70,7 +70,7 @@
       :items:
       - :url: /security/functional_areas/program_functions/$:program_id$/new
         :text: new program function
-        :icon: add-circle
+        :icon: add-solid
         :popup: true
         :hide_if_null: :program_id
       - :url: /security/functional_areas/program_functions/$:id$/edit

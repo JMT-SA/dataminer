@@ -6,14 +6,6 @@ GIT
       pg_query (= 1.0.2)
 
 GIT
-  remote: https://github.com/NoSoft-SA/crossbeams-layout.git
-  revision: 9343ef8bfbe1168e9aa13359ded4200205ff0c59
-  specs:
-    crossbeams-layout (0.1.7)
-      diffy
-      rouge
-
-GIT
   remote: https://github.com/NoSoft-SA/roda-data_grid.git
   revision: ccbe5a99e9f76f8123dcd2b51359c4a7091c1811
   specs:
@@ -22,6 +14,13 @@ GIT
       crossbeams-dataminer
       crossbeams-layout
       roda
+
+PATH
+  remote: /home/james/ra/crossbeams/crossbeams-layout
+  specs:
+    crossbeams-layout (0.1.9)
+      diffy
+      rouge
 
 GEM
   remote: https://rubygems.org/

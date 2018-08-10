@@ -22,11 +22,11 @@ gem 'tiny_tds' # -- Required if dataminer has to run MSSqlServer reports.
 gem 'yard'
 
 gem 'crossbeams-dataminer', git: 'https://github.com/NoSoft-SA/crossbeams-dataminer.git'
-gem 'crossbeams-layout', git: 'https://github.com/NoSoft-SA/crossbeams-layout.git'
+# gem 'crossbeams-layout', git: 'https://github.com/NoSoft-SA/crossbeams-layout.git'
 gem 'roda-data_grid', git: 'https://github.com/NoSoft-SA/roda-data_grid.git'
 
 # gem 'crossbeams-dataminer',           path: File.expand_path('../crossbeams-dataminer', __dir__)
-# gem 'crossbeams-layout',              path: File.expand_path('../crossbeams-layout', __dir__)
+gem 'crossbeams-layout',              path: File.expand_path('../crossbeams-layout', __dir__)
 # gem 'roda-data_grid',                 path: File.expand_path('../../roda-data_grid', __dir__)
 
 group :test do

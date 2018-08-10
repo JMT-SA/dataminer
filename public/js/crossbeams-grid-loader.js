@@ -161,6 +161,9 @@ const crossbeamsGridEvents = {
                 this.updateGridInPlace(gridRow.id, gridRow.changes);
               });
             } else if (data.actions) {
+              if (data.keep_dialog_open) {
+                closeDialog = false;
+              }
               data.actions.forEach((action) => {
                 if (action.replace_options) {
                   crossbeamsUtils.replaceSelectrOptions(action);
@@ -170,6 +173,9 @@ const crossbeamsGridEvents = {
                 }
                 if (action.replace_input_value) {
                   crossbeamsUtils.replaceInputValue(action);
+                }
+                if (action.replace_list_items) {
+                  crossbeamsUtils.replaceListItems(action);
                 }
               });
             } else if (data.replaceDialog) {
@@ -555,7 +561,7 @@ const crossbeamsGridFormatters = {
     if (items.length === 0) {
       return '';
     }
-    return `<button class='grid-context-menu' data-dom-grid-id='${params.context.domGridId}' data-row='${JSON.stringify(items)}'>&nbsp;<i class="fa fa-chevron-right blue"></i>&nbsp;</button>`;
+    return `<button class='grid-context-menu' data-dom-grid-id='${params.context.domGridId}' data-row='${JSON.stringify(items)}'><svg class="cbl-icon blue" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M12.95 10.707l.707-.707L8 4.343 6.586 5.757 10.828 10l-4.242 4.243L8 15.657l4.95-4.95z"/></svg></button>`;
   },
 
   // Return a number with thousand separator and at least 2 digits after the decimal.

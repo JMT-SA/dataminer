@@ -12,6 +12,8 @@ class RouteTester < Minitest::Test
   include Minitest::Hooks
   include Crossbeams::Responses
 
+  DEFAULT_LAST_GRID_URL = '/list/users'
+
   def around
     DB.transaction(rollback: :always, savepoint: true, auto_savepoint: true) do
       super
@@ -65,12 +67,12 @@ class RouteTester < Minitest::Test
     end
   end
 
-  def ok_response(instance: nil)
-    success_response('OK', instance)
+  def ok_response(message: nil, instance: nil)
+    success_response((message || 'OK'), instance)
   end
 
-  def bad_response
-    failed_response('FAILED')
+  def bad_response(message: nil, instance: nil)
+    failed_response((message || 'FAILED'), instance)
   end
 
   def expect_json_response
@@ -109,7 +111,7 @@ class RouteTester < Minitest::Test
     expect_json_response
   end
 
-  def expect_ok_redirect(url: '/')
+  def expect_ok_redirect(url: DEFAULT_LAST_GRID_URL)
     assert last_response.redirect?
     assert_equal url, header_location
     follow_redirect!
@@ -117,7 +119,7 @@ class RouteTester < Minitest::Test
     assert last_response.body.include?('OK')
   end
 
-  def expect_bad_redirect(url: '/')
+  def expect_bad_redirect(url: DEFAULT_LAST_GRID_URL)
     assert last_response.redirect?
     assert_equal url, header_location
     follow_redirect!
@@ -146,5 +148,23 @@ class RouteTester < Minitest::Test
 
   def get_as_fetch(url, params = {}, options = nil)
     get url, params, options.merge('HTTP_X_CUSTOM_REQUEST_TYPE' => 'Y')
+  end
+
+  def expect_flash_notice(message = nil)
+    assert last_request.session['_flash']
+    if message
+      assert_equal message, last_request.session['_flash'][:notice]
+    else
+      assert_equal 'OK', last_request.session['_flash'][:notice]
+    end
+  end
+
+  def expect_flash_error(message = nil)
+    assert last_request.session['_flash']
+    if message
+      assert_equal message, last_request.session['_flash'][:error]
+    else
+      assert_equal 'FAILED', last_request.session['_flash'][:error]
+    end
   end
 end
