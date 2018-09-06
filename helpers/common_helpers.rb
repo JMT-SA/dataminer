@@ -46,6 +46,26 @@ module CommonHelpers
     end
   end
 
+  # Add validation errors that are not linked to a field in a form.
+  #
+  # @param messages [Hash] the current hash of validation messages.
+  # @param base_messages [String, Array] the new messages to be added to the base of the form.
+  # @return [Hash] the expanded validation messages.
+  def add_base_validation_errors(messages, base_messages)
+    (messages || {}).merge(base: Array(base_messages))
+  end
+
+  # Add validation errors that are not linked to a field in a form.
+  # At the same time highlight one or more fields in error
+  #
+  # @param messages [Hash] the current hash of validation messages.
+  # @param base_messages [String, Array] the new messages to be added to the base of the form.
+  # @param fields [Array] the fields in the form to be highlighted.
+  # @return [Hash] the expanded validation messages.
+  def add_base_validation_errors_with_highlights(messages, base_messages, fields)
+    (messages || {}).merge(base_with_highlights: { messages: Array(base_messages), highlights: fields })
+  end
+
   # Selection from a multiselect grid.
   # Returns an array of values.
   def multiselect_grid_choices(params, treat_as_integers: true)
@@ -131,6 +151,10 @@ module CommonHelpers
     raise Crossbeams::AuthorizationError unless authorised?(programs, sought_permission, functional_area_id)
   end
 
+  def set_last_grid_url(url, route = nil)
+    session[:last_grid_url] = url unless route && fetch?(route)
+  end
+
   def redirect_to_last_grid(route)
     if fetch?(route)
       redirect_via_json(session[:last_grid_url])
@@ -196,20 +220,24 @@ module CommonHelpers
     res.to_json
   end
 
-  def json_replace_select_options(dom_id, options_array, message = nil, keep_dialog_open: false)
-    json_actions(OpenStruct.new(type: :replace_select_options, dom_id: dom_id, options_array: options_array), message, keep_dialog_open)
+  def json_replace_select_options(dom_id, options_array, message: nil, keep_dialog_open: false)
+    json_actions(OpenStruct.new(type: :replace_select_options, dom_id: dom_id, options_array: options_array), message, keep_dialog_open: keep_dialog_open)
   end
 
-  def json_replace_multi_options(dom_id, options_array, message = nil, keep_dialog_open: false)
-    json_actions(OpenStruct.new(type: :replace_multi_options, dom_id: dom_id, options_array: options_array), message, keep_dialog_open)
+  def json_replace_multi_options(dom_id, options_array, message: nil, keep_dialog_open: false)
+    json_actions(OpenStruct.new(type: :replace_multi_options, dom_id: dom_id, options_array: options_array), message, keep_dialog_open: keep_dialog_open)
   end
 
-  def json_replace_input_value(dom_id, value, message = nil, keep_dialog_open: false)
-    json_actions(OpenStruct.new(type: :replace_input_value, dom_id: dom_id, value: value), message, keep_dialog_open)
+  def json_replace_input_value(dom_id, value, message: nil, keep_dialog_open: false)
+    json_actions(OpenStruct.new(type: :replace_input_value, dom_id: dom_id, value: value), message, keep_dialog_open: keep_dialog_open)
   end
 
-  def json_replace_list_items(dom_id, items, message = nil, keep_dialog_open: false)
-    json_actions(OpenStruct.new(type: :replace_list_items, dom_id: dom_id, items: Array(items)), message, keep_dialog_open)
+  def json_replace_list_items(dom_id, items, message: nil, keep_dialog_open: false)
+    json_actions(OpenStruct.new(type: :replace_list_items, dom_id: dom_id, items: Array(items)), message, keep_dialog_open: keep_dialog_open)
+  end
+
+  def json_clear_form_validation(dom_id, message: nil, keep_dialog_open: false)
+    json_actions(OpenStruct.new(type: :clear_form_validation, dom_id: dom_id), message, keep_dialog_open: keep_dialog_open)
   end
 
   # This could be built in a class and receive send messages....
@@ -218,6 +246,7 @@ module CommonHelpers
     return action_replace_select_options(action) if action.type == :replace_select_options
     return action_replace_multi_options(action) if action.type == :replace_multi_options
     return action_replace_list_items(action) if action.type == :replace_list_items
+    return action_clear_form_validation(action) if action.type == :clear_form_validation
   end
 
   def action_replace_select_options(action)
@@ -234,6 +263,10 @@ module CommonHelpers
 
   def action_replace_list_items(action)
     { replace_list_items: { id: action.dom_id, items: action.items } }
+  end
+
+  def action_clear_form_validation(action)
+    { clear_form_validation: { form_id: action.dom_id } }
   end
 
   def json_actions(actions, message = nil, keep_dialog_open: false)

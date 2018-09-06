@@ -25,8 +25,17 @@ require './lib/ui_rules'
 
 Dir["#{root_dir}/lib/applets/*.rb"].each { |f| require f }
 
+# Database seeds - called in `around_all` hook of MiniTestWithHooks
+# Each seed file must reopen the MiniTestSeeds module.
+# Each seed file MUST have at least one method with a name that start with "db_create_".
+# The methods should add lookup information (like key id values) to `@fixed_table_set`.
+# Place database seed logic in those methods.
+module MiniTestSeeds end
+Dir["#{root_dir}/test/db_seeds/*.rb"].each { |f| require f }
+
 class MiniTestWithHooks < Minitest::Test
   include Minitest::Hooks
+  include MiniTestSeeds
 
   def around
     DB.transaction(rollback: :always, savepoint: true, auto_savepoint: true) do
@@ -36,6 +45,9 @@ class MiniTestWithHooks < Minitest::Test
 
   def around_all
     DB.transaction(rollback: :always) do
+      # Run all the seed-creation methods:
+      @fixed_table_set = {}
+      methods.grep(/^db_create_.+/).each { |m| send(m) }
       super
     end
   end

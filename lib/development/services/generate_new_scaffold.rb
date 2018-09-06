@@ -74,7 +74,7 @@ class GenerateNewScaffold < BaseService
         test: {
           interactor: "lib/#{@applet}/test/interactors/test_#{@singlename}_interactor.rb",
           repo: "lib/#{@applet}/test/repositories/test_#{repofile}_repo.rb",
-          route: "test/routes/#{@applet}/test_#{@program}_routes.rb"
+          route: "test/routes/#{@applet}/#{@program}/test_#{@singlename}_routes.rb"
         }
       }
     end
@@ -514,7 +514,7 @@ class GenerateNewScaffold < BaseService
                   if res.success
                     #{update_grid_row.gsub("\n", "\n            ").sub(/            \Z/, '').sub(/\n\Z/, '')}
                   else
-                    content = show_partial { #{opts.classnames[:view_prefix]}::Edit.call(id, params[:#{opts.singlename}], res.errors) }
+                    content = show_partial { #{opts.classnames[:view_prefix]}::Edit.call(id, form_values: params[:#{opts.singlename}], form_errors: res.errors) }
                     update_dialog_content(content: content, error: res.message)
                   end
                 end
@@ -527,7 +527,7 @@ class GenerateNewScaffold < BaseService
               end
             end
 
-            #{new_create_routes.gsub("\n", "\n    ").sub(/    \Z/, '')}
+            #{new_create_routes.chomp.gsub("\n", "\n    ")}
           end
         end
 
@@ -550,6 +550,8 @@ class GenerateNewScaffold < BaseService
           interactor = #{opts.classnames[:namespaced_interactor]}.new(current_user, {}, { route_url: request.path }, {})
           r.on 'new' do    # NEW
             check_auth!('#{opts.program_text}', 'new')
+            # FIXME: --- UNCOMMENT next line if this is called directly from a menu item
+            # set_last_grid_url('/list/#{opts.table}', r)
             show_partial_or_page(r) { #{opts.classnames[:view_prefix]}::New.call(remote: fetch?(r)) }
           end
           r.post do        # CREATE
@@ -576,6 +578,8 @@ class GenerateNewScaffold < BaseService
             interactor = #{opts.classnames[:namespaced_interactor]}.new(current_user, {}, { route_url: request.path }, {})
             r.on 'new' do    # NEW
               check_auth!('#{opts.program_text}', 'new')
+              # FIXME: --- UNCOMMENT next line if this is called directly from a menu item
+              # set_last_grid_url('/list/#{opts.table}', r)
               show_partial_or_page(r) { #{opts.classnames[:view_prefix]}::New.call(id, remote: fetch?(r)) }
             end
             r.post do        # CREATE
@@ -694,15 +698,20 @@ class GenerateNewScaffold < BaseService
         fk_repo = "#{opts.classnames[:module]}::#{klassname}Repo"
         code = tm.likely_label_field
         flds << "# #{f}_label = #{fk_repo}.new.find_#{singlename}(@form_object.#{f})&.#{code}"
-        flds << "#{f}_label = @repo.find(:#{fk[:table]}, #{klassname}, @form_object.#{f})&.#{code}"
+        flds << "#{f}_label = @repo.find(:#{fk[:table]}, #{opts.classnames[:module]}::#{klassname}, @form_object.#{f})&.#{code}"
       end
 
       flds + fields_to_use.map do |f|
         fk = opts.table_meta.fk_lookup[f]
         if fk.nil?
-          "fields[:#{f}] = { renderer: :label }"
+          this_col = opts.table_meta.col_lookup[f]
+          if this_col[:type] == :boolean
+            "fields[:#{f}] = { renderer: :label, as_boolean: true }"
+          else
+            "fields[:#{f}] = { renderer: :label }"
+          end
         else
-          "fields[:#{f}] = { renderer: :label, with_value: #{f}_label, caption: '#{f.to_s.chomp('_id')}' }"
+          "fields[:#{f}] = { renderer: :label, with_value: #{f}_label, caption: '#{f.to_s.chomp('_id').split('_').map(&:capitalize).join(' ')}' }"
         end
       end
     end
@@ -736,7 +745,7 @@ class GenerateNewScaffold < BaseService
       if tm.active_column_present?
         "#{field}: { renderer: :select, options: #{fk_repo}.new.for_select_#{fk[:table]}, disabled_options: #{fk_repo}.new.for_inactive_select_#{fk[:table]}, caption: '#{field.to_s.chomp('_id')}'#{required} }"
       else
-        "#{field}: { renderer: :select, options: #{fk_repo}.new.for_select_#{fk[:table]}, caption: '#{field.to_s.chomp('_id')}'#{required} }"
+        "#{field}: { renderer: :select, options: #{fk_repo}.new.for_select_#{fk[:table]}, caption: '#{field.to_s.chomp('_id').split('_').map(&:capitalize).join(' ')}'#{required} }"
       end
     end
 
@@ -842,7 +851,7 @@ class GenerateNewScaffold < BaseService
       <<~RUBY
         # frozen_string_literal: true
 
-        require File.join(File.expand_path('./../', __dir__), 'test_helper_for_routes')
+        require File.join(File.expand_path('./../../../', __dir__), 'test_helper_for_routes')
 
         class Test#{opts.classnames[:class]}Routes < RouteTester
 
@@ -886,7 +895,7 @@ class GenerateNewScaffold < BaseService
             ensure_exists!(INTERACTOR)
             row_vals = Hash.new(1)
             #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:update_#{opts.singlename}).returns(ok_response(instance: row_vals))
-            patch '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
+            patch '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1, last_grid_url: DEFAULT_LAST_GRID_URL }
             expect_json_update_grid
           end
 
@@ -895,7 +904,7 @@ class GenerateNewScaffold < BaseService
             ensure_exists!(INTERACTOR)
             #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:update_#{opts.singlename}).returns(bad_response)
             #{opts.classnames[:view_prefix]}::Edit.stub(:call, bland_page) do
-              patch '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
+              patch '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1, last_grid_url: DEFAULT_LAST_GRID_URL }
             end
             expect_json_replace_dialog(has_error: true)
           end
@@ -904,7 +913,7 @@ class GenerateNewScaffold < BaseService
             authorise_pass!
             ensure_exists!(INTERACTOR)
             #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:delete_#{opts.singlename}).returns(ok_response)
-            delete '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
+            delete '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1, last_grid_url: DEFAULT_LAST_GRID_URL }
             expect_json_delete_from_grid
           end
           #
@@ -912,7 +921,7 @@ class GenerateNewScaffold < BaseService
           #   authorise_pass!
           #   ensure_exists!(INTERACTOR)
           #   #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:delete_#{opts.singlename}).returns(bad_response)
-          #   delete '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
+          #   delete '#{base_route}#{opts.table}/1', {}, 'rack.session' => { user_id: 1, last_grid_url: DEFAULT_LAST_GRID_URL }
           #   expect_bad_redirect
           # end
 
@@ -937,7 +946,7 @@ class GenerateNewScaffold < BaseService
             authorise_pass!
             ensure_exists!(INTERACTOR)
             #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:create_#{opts.singlename}).returns(ok_response)
-            post '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
+            post '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: DEFAULT_LAST_GRID_URL }
             expect_ok_redirect
           end
 
@@ -945,7 +954,7 @@ class GenerateNewScaffold < BaseService
             authorise_pass!
             ensure_exists!(INTERACTOR)
             #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:create_#{opts.singlename}).returns(ok_response)
-            post_as_fetch '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
+            post_as_fetch '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: DEFAULT_LAST_GRID_URL }
             expect_ok_json_redirect
           end
 
@@ -954,12 +963,12 @@ class GenerateNewScaffold < BaseService
             ensure_exists!(INTERACTOR)
             #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:create_#{opts.singlename}).returns(bad_response)
             #{opts.classnames[:view_prefix]}::New.stub(:call, bland_page) do
-              post_as_fetch '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
+              post_as_fetch '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: DEFAULT_LAST_GRID_URL }
             end
             expect_bad_page
 
             #{opts.classnames[:view_prefix]}::New.stub(:call, bland_page) do
-              post '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
+              post '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: DEFAULT_LAST_GRID_URL }
             end
             expect_bad_redirect(url: '/#{base_route}#{opts.table}/new')
           end
@@ -969,7 +978,7 @@ class GenerateNewScaffold < BaseService
             ensure_exists!(INTERACTOR)
             #{opts.classnames[:namespaced_interactor]}.any_instance.stubs(:create_#{opts.singlename}).returns(bad_response)
             #{opts.classnames[:view_prefix]}::New.stub(:call, bland_page) do
-              post_as_fetch '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: '/' }
+              post_as_fetch '#{base_route}#{opts.table}', {}, 'rack.session' => { user_id: 1, last_grid_url: DEFAULT_LAST_GRID_URL }
             end
             expect_json_replace_dialog
           end
@@ -1054,7 +1063,7 @@ class GenerateNewScaffold < BaseService
           module #{opts.classnames[:program]}
             module #{opts.classnames[:class]}
               class Edit
-                def self.call(id, form_values = nil, form_errors = nil) # rubocop:disable Metrics/AbcSize
+                def self.call(id, form_values: nil, form_errors: nil) # rubocop:disable Metrics/AbcSize
                   ui_rule = UiRules::Compiler.new(:#{opts.singlename}, :edit, id: id, form_values: form_values)
                   rules   = ui_rule.compile
 

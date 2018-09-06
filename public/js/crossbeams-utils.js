@@ -340,7 +340,7 @@ const crossbeamsUtils = {
     if (elem === null) {
       this.alert({
         prompt: `There is no DOM element with id: "${action.replace_multi_options.id}"`,
-        title: 'Dropdown-change: id missmatch',
+        title: 'Replace multi options: id missmatch',
         type: 'error',
       });
       return;
@@ -373,7 +373,7 @@ const crossbeamsUtils = {
     if (elem === null) {
       this.alert({
         prompt: `There is no DOM element with id: "${action.replace_input_value.id}"`,
-        title: 'Dropdown-change: id missmatch',
+        title: 'Replace input: id missmatch',
         type: 'error',
       });
       return;
@@ -400,6 +400,31 @@ const crossbeamsUtils = {
       const li = document.createElement('li');
       li.append(document.createTextNode(item));
       elem.appendChild(li);
+    });
+  },
+  /**
+   * Clear all validation error messages and styling for a form.
+   * @param {object} action - the action object returned from the backend.
+   * @returns {void}
+   */
+  clearFormValidation: function clearFormValidation(action) {
+    const form = document.getElementById(action.clear_form_validation.form_id);
+    if (form === null) {
+      this.alert({
+        prompt: `There is no DOM form element with id: "${action.clear_form_validation.id}"`,
+        title: 'Clear form validation: id missmatch',
+        type: 'error',
+      });
+      return;
+    }
+    form.querySelectorAll('div.crossbeams-form-base-error').forEach((node) => {
+      node.remove();
+    });
+    form.querySelectorAll('span.crossbeams-form-error').forEach((node) => {
+      node.remove();
+    });
+    form.querySelectorAll('div.crossbeams-div-error').forEach((node) => {
+      node.classList.remove('crossbeams-div-error', 'bg-washed-red');
     });
   },
 
@@ -436,6 +461,9 @@ const crossbeamsUtils = {
           }
           if (action.replace_list_items) {
             this.replaceListItems(action);
+          }
+          if (action.clear_form_validation) {
+            this.clearFormValidation(action);
           }
         });
       }
@@ -496,8 +524,14 @@ const crossbeamsUtils = {
       if (sel.selectr) {
         // Selectr has already been applied...
       } else {
+        const isRequired = sel.required;
+        let cls = 'cbl-input';
+        if (isRequired) {
+          sel.required = false;
+          cls = 'cbl-input-required';
+        }
         holdSel = new Selectr(sel, {
-          customClass: 'cbl-input',
+          customClass: cls,
           defaultSelected: true, // should configure via data...
           // multiple: true,     // should configure via data...
           allowDeselect: false,
