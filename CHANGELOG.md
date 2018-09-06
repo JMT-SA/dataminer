@@ -8,6 +8,7 @@ and this project adheres roughly to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
 ### Changed
+- If a dataminer database connection could not be made, fail quietly and show a warning when a report for a disconnected database is run.
 ### Fixed
 
 ## [0.2.0] - 2018-08-10

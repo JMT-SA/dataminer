@@ -23,8 +23,13 @@ class Dataminer < Roda
       id = id.gsub('%20', ' ')
 
       r.get true do
-        @page = interactor.report_parameters(id, params)
-        view('dataminer/report/parameters')
+        res = interactor.check_db_connection(id)
+        if res.success
+          @page = interactor.report_parameters(id, params)
+          view('dataminer/report/parameters')
+        else
+          show_page_warning("Database \"#{res.instance}\" was unable to connect. The error was \"#{res.message}\". Please inform IT.")
+        end
       end
 
       r.post 'xls' do
